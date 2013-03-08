@@ -20,4 +20,5 @@ doc/
 # VIM
 .*sw?
 
+Gemfile.lock
 config.json
