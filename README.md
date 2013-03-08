@@ -36,11 +36,11 @@ $ cd optica
 $ ln -s config.json.example config.json
 ```
 
-To start `optica`, just use rackup!
+We run `optica` via thin.
 To spin up a test process on port 4567:
 
 ```bash
-$ rackup -p 4567
+$ thin start -p 4567
 ```
 
 ## Data stores ##
