@@ -96,7 +96,7 @@ class Store
 
       begin
         @zk.set(child, data)
-      rescue ZK::Exceptions::Nochild => e
+      rescue ZK::Exceptions::NoNode => e
         @zk.create(child, :data =>data)
       end
 
