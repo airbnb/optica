@@ -39,4 +39,8 @@ class Optica < Sinatra::Base
     settings.store.add(request.ip, data)
     return 'stored'
   end
+
+  get '/health' do
+    return "OK"
+  end
 end
