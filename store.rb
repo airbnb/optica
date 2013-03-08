@@ -34,6 +34,17 @@ class Store
 
     @log.info "ZK connection established successfully"
     Thread.new{sync}
+
+    at_exit { stop }
+  end
+
+  def stop()
+    @stopping = true
+
+    @log.warn "Writing out new nodes before exiting..."
+    write_nodes
+
+    @zk.close!
   end
 
   def add(node, data)
@@ -56,7 +67,11 @@ class Store
       begin
         @log.debug "starting sync"
 
-        do_sync
+        @zk.ping?
+        write_nodes
+        read_nodes
+        sync_aws
+
         @log.info "sync complete, sleeping for #{@sync_interval}"
 
         sleep @sync_interval
@@ -71,11 +86,7 @@ class Store
     @log.info "sync thread exited"
   end
 
-  def do_sync()
-    # ping zookeeper
-    @log.debug "pinging"
-    @zk.ping?
-
+  def write_nodes()
     # write all new nodes to zk
     @log.debug "writing new nodes"
     @new_nodes.each do |node, data|
@@ -91,7 +102,9 @@ class Store
 
       @new_nodes.delete(node)
     end
+  end
 
+  def read_nodes()
     # refresh our nodes list
     @log.debug "reading new nodes"
     from_server = {}
@@ -109,9 +122,11 @@ class Store
     end
 
     @nodes = from_server
+  end
 
+  def sync_aws()
     # TODO: clean up nodes no longer in aws
-    @log.debug "cleaning up nodes in aws"
+    @log.debug "cleaning up dead nodes"
   end
 
 
