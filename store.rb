@@ -1,5 +1,5 @@
 require 'zk'
-require 'aws-sdk'
+require 'fog'
 require 'json'
 require 'logger'
 
@@ -29,9 +29,6 @@ class Store
   end
 
   def start()
-    @log.info "configuring aws credentials"
-    AWS.config({:access_key_id => @aws_key, :secret_access_key => @aws_secret})
-
     @log.info "waiting to connect to zookeeper at #{@path}"
     @zk = ZK.new(@path)
     @zk.ping?
@@ -131,10 +128,14 @@ class Store
   def sync_aws()
     @log.debug "list all ips on all instances in ec2"
     ips = []
-    ec2 = AWS::EC2.new()
-    ec2.regions.each do |region|
-      region.instances.each do |instance|
-        ips << instance.private_ip_address
+
+    creds = {:provider => 'AWS', :aws_access_key_id => @aws_key, :aws_secret_access_key => @aws_secret}
+    f = Fog::Compute.new(creds)
+    f.describe_regions.body['regionInfo'].each do |regionInfo|
+      creds[:region] = regionInfo['regionName']
+      con = Fog::Compute.new(creds)
+      con.servers.each do |server|
+        ips << server.private_ip_address
       end
 
       @log.debug "#{ips.count} ips so far..."
