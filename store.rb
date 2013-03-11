@@ -1,4 +1,5 @@
 require 'zk'
+require 'aws-sdk'
 require 'json'
 require 'logger'
 
@@ -16,8 +17,8 @@ class Store
     end
 
     @path = opts['zk_path']
-    @aws_key = opts['aws_key']
-    @aws_secret = opts['aws_secret']
+    @aws_key = opts['aws_access_key']
+    @aws_secret = opts['aws_secret_key']
 
     @sync_interval = 30
     @sync_interval = opts['sync_interval'].to_i if opts.include?('sync_interval')
@@ -28,6 +29,9 @@ class Store
   end
 
   def start()
+    @log.info "configuring aws credentials"
+    AWS.config({:access_key_id => @aws_key, :secret_access_key => @aws_secret})
+
     @log.info "waiting to connect to zookeeper at #{@path}"
     @zk = ZK.new(@path)
     @zk.ping?
@@ -125,9 +129,28 @@ class Store
   end
 
   def sync_aws()
-    # TODO: clean up nodes no longer in aws
-    @log.debug "cleaning up dead nodes"
+    @log.debug "list all ips on all instances in ec2"
+    ips = []
+    ec2 = AWS::EC2.new()
+    ec2.regions.each do |region|
+      region.instances.each do |instance|
+        ips << instance.private_ip_address
+      end
+
+      @log.debug "#{ips.count} ips so far..."
+    end
+
+    stale = @nodes.keys.select{ |ip| not ips.include? ip }
+    ratio = (stale.count.to_f / @nodes.count.to_f) * 100
+
+    if ratio > 10
+      @log.warn "#{stale.count} of #{@nodes.count} stale nodes is too many; skipping cleanup"
+    else
+      @log.info "Cleaning up #{stale.count} stale nodes (#{ratio}%)"
+      stale.each do |ip|
+        @log.info "deleting stale node #{ip} (#{@nodes[ip].inspect})"
+        delete(ip)
+      end
+    end
   end
-
-
 end
