@@ -1,6 +1,6 @@
 source :rubygems
 
 gem 'sinatra'
-gem 'unicorn'
 gem 'zk'
+gem 'fog'
 gem 'thin'
