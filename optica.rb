@@ -7,8 +7,10 @@ class Optica < Sinatra::Base
     params = CGI::parse(request.query_string)
 
     # include only those nodes that match passed-in parameters
+    examined = 0
     to_return = {}
     settings.store.nodes.each do |node, properties|
+      examined += 1
       included = true
 
       params.each do |param, values|
@@ -16,7 +18,7 @@ class Optica < Sinatra::Base
           if not properties.include? param
             included = false
           elsif properties[param].is_a? String
-            included = false unless properties[param] == value
+            included = false unless properties[param].match value
           elsif properties[param].is_a? Array
             included = false unless properties[param].include? value
           end
@@ -26,7 +28,8 @@ class Optica < Sinatra::Base
       to_return[node] = properties if included
     end
 
-    return to_return.to_json
+    result = {'examined'=>examined, 'returned'=>to_return.count, 'nodes'=>to_return}
+    return result.to_json
   end
 
   post '/' do
