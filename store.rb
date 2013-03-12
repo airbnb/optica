@@ -57,7 +57,7 @@ class Store
     @log.info "deleting node #{node}"
     @nodes.delete(node)
 
-    @zk.delete(node.insert(0,'/'), :ignore => :no_node)
+    @zk.delete("/" + node, :ignore => :no_node)
   end
 
   private
