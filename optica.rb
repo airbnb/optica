@@ -21,6 +21,10 @@ class Optica < Sinatra::Base
             included = false unless properties[param].match value
           elsif properties[param].is_a? Array
             included = false unless properties[param].include? value
+          elsif properties[param].class == TrueClass
+            included = false unless ['true', 'True', '1'].include? value
+          elsif properties[param].class == FalseClass
+            included = false unless ['false', 'False', '0'].include? value
           end
         end
       end
