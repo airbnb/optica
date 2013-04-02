@@ -32,6 +32,7 @@ class Optica < Sinatra::Base
       to_return[node] = properties if included
     end
 
+    content_type 'application/json', :charset => 'utf-8'
     result = {'examined'=>examined, 'returned'=>to_return.count, 'nodes'=>to_return}
     return result.to_json
   end
@@ -44,10 +45,12 @@ class Optica < Sinatra::Base
     end
 
     settings.store.add(request.ip, data)
+    content_type 'text/plain', :charset => 'utf-8'
     return 'stored'
   end
 
   get '/health' do
+    content_type 'text/plain', :charset => 'utf-8'
     return "OK"
   end
 end
