@@ -44,7 +44,12 @@ class Optica < Sinatra::Base
       data = {}
     end
 
-    settings.store.add(request.ip, data)
+    # the node ip is in the request
+    ip = request.ip
+
+    halt(403) unless settings.store.ips.include? ip
+
+    settings.store.add(ip, data)
     content_type 'text/plain', :charset => 'utf-8'
     return 'stored'
   end

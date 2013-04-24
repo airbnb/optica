@@ -4,7 +4,8 @@ require 'json'
 require 'logger'
 
 class Store
-  attr_reader :nodes
+
+  attr_reader :ips
 
   def initialize(opts)
     @log = Logger.new(STDOUT)
@@ -23,9 +24,9 @@ class Store
     @sync_interval = opts['sync_interval'].to_i if opts.include?('sync_interval')
 
     @zk = nil
-    @nodes = {}
-    @new_nodes = {}
+    @ips = []
     @stopping = false
+    @synced_once = false
   end
 
   def start()
@@ -41,27 +42,61 @@ class Store
 
   def stop()
     @stopping = true
+    Process.kill("TERM", Process.pid)
+  end
 
-    @log.warn "Writing out new nodes before exiting..."
-    write_nodes
+  def nodes()
+    from_server = {}
 
-    @zk.close!
+    @zk.children('/').each do |child|
+      begin
+        data, stat = @zk.get("/#{child}")
+        from_server[child] = JSON.parse(data)
+      rescue ZK::Exceptions::NoNode
+        @log.info "child #{child} disappeared"
+      rescue JSON::ParserError
+        @log.warn "removing invalid node #{child}: data failed to parse (#{child_info.inspect})"
+        delete(child)
+      rescue Exception => e
+        @log.error "unexpected error reading from zk! #{e.inspect}"
+        stop
+      end
+    end
+
+    from_server
   end
 
   def add(node, data)
-    @nodes[node] = data
-    @new_nodes[node] = data
+    child = "/#{node}"
+    data = data.to_json
+    @log.debug "writing to zk at #{child} with #{data}"
+
+    begin
+      @zk.set(child, data)
+    rescue ZK::Exceptions::NoNode => e
+      @zk.create(child, :data =>data)
+    rescue Exception => e
+      @log.error "unexpected error writing to zk! #{e.inspect}"
+      stop
+    end
   end
 
   def delete(node)
     @log.info "deleting node #{node}"
-    @nodes.delete(node)
 
-    @zk.delete("/" + node, :ignore => :no_node)
+    begin
+      @zk.delete("/" + node, :ignore => :no_node)
+    rescue Exception => e
+      @log.error "unexpected error deleting nodes in zk! #{e.inspect}"
+      stop
+    end
   end
 
   def ping()
+    return False if @stopping
     return False unless @zk
+    return False unless @synced_once
+
     @zk.ping?
   end
 
@@ -74,60 +109,22 @@ class Store
         @log.debug "starting sync"
 
         @zk.ping?
-        write_nodes
-        read_nodes
         sync_aws
 
-        @log.info "sync complete, sleeping for #{@sync_interval}"
+        @synced_once = true
 
+        @log.info "sync complete, sleeping for #{@sync_interval}"
         sleep @sync_interval
 
       rescue Exception => e
         @log.error "unexpected exception in store sync thread! #{e.inspect}"
-        start
+        @stopping = true
         break
       end
     end
 
-    @log.info "sync thread exited"
-  end
-
-  def write_nodes()
-    # write all new nodes to zk
-    @log.debug "writing new nodes"
-    @new_nodes.each do |node, data|
-      child = "/#{node}"
-      data = data.to_json
-      @log.info "writing to zk at #{child} with #{data}"
-
-      begin
-        @zk.set(child, data)
-      rescue ZK::Exceptions::NoNode => e
-        @zk.create(child, :data =>data)
-      end
-
-      @new_nodes.delete(node)
-    end
-  end
-
-  def read_nodes()
-    # refresh our nodes list
-    @log.debug "reading new nodes"
-    from_server = {}
-
-    @zk.children('/').each do |child|
-      begin
-        data, stat = @zk.get("/#{child}")
-        from_server[child] = JSON.parse(data)
-      rescue ZK::Exceptions::NoNode
-        @log.info "child #{child} disappeared"
-      rescue JSON::ParserError
-        @log.warn "removing invalid node #{child}: data failed to parse (#{child_info.inspect})"
-        delete(child)
-      end
-    end
-
-    @nodes = from_server
+    @log.info "sync thread exited; stopping everything"
+    stop
   end
 
   def sync_aws()
@@ -146,15 +143,20 @@ class Store
       @log.debug "#{ips.count} ips so far..."
     end
 
-    stale = @nodes.keys.select{ |ip| not ips.include? ip }
-    ratio = (stale.count.to_f / @nodes.count.to_f) * 100
+    # save aws ips
+    @ips = ips
+
+    cur_nodes = nodes
+
+    stale = cur_nodes.keys.select{ |ip| not ips.include? ip }
+    ratio = (stale.count.to_f / cur_nodes.count.to_f) * 100
 
     if ratio > 10
-      @log.warn "#{stale.count} of #{@nodes.count} stale nodes is too many; skipping cleanup"
+      @log.warn "#{stale.count} of #{cur_nodes.count} stale nodes is too many; skipping cleanup"
     else
       @log.info "Cleaning up #{stale.count} stale nodes (#{ratio}%)"
       stale.each do |ip|
-        @log.info "deleting stale node #{ip} (#{@nodes[ip].inspect})"
+        @log.info "deleting stale node #{ip} (#{cur_nodes[ip].inspect})"
         delete(ip)
       end
     end
