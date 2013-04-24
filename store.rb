@@ -91,12 +91,13 @@ class Store
     end
   end
 
-  def ping()
-    return False if @stopping
-    return False unless @zk
-    return False unless @synced_once
+  def healthy?()
+    return false if @stopping
+    return false unless @synced_once
+    return false unless @zk
+    return false unless @zk.ping?
 
-    @zk.ping?
+    return true
   end
 
   private
