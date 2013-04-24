@@ -11,7 +11,6 @@ class Store
     @log.progname = self.class.name
     @log.level = Logger::INFO unless opts['debug']
 
-
     %w{zk_path aws_access_key aws_secret_key}.each do |req|
       raise ArgumentError, "missing required argument '#{req}'" unless opts[req]
     end
@@ -23,6 +22,7 @@ class Store
     @sync_interval = 30
     @sync_interval = opts['sync_interval'].to_i if opts.include?('sync_interval')
 
+    @zk = nil
     @nodes = {}
     @new_nodes = {}
     @stopping = false
@@ -58,6 +58,11 @@ class Store
     @nodes.delete(node)
 
     @zk.delete("/" + node, :ignore => :no_node)
+  end
+
+  def ping()
+    return False unless @zk
+    @zk.ping?
   end
 
   private

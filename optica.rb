@@ -51,6 +51,12 @@ class Optica < Sinatra::Base
 
   get '/health' do
     content_type 'text/plain', :charset => 'utf-8'
-    return "OK"
+    return "OK" if settings.store.ping
+    halt(503)
+  end
+
+  get '/ping' do
+    content_type 'text/plain', :charset => 'utf-8'
+    return "PONG"
   end
 end
