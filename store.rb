@@ -51,7 +51,7 @@ class Store
 
     begin
       @zk.children('/').each do |child|
-        from_server[child] = get_node(child)
+        from_server[child] = get_node("/#{child}")
       end
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
@@ -103,7 +103,7 @@ class Store
   private
   def get_node(node)
     begin
-      data, stat = @zk.get("/#{node}")
+      data, stat = @zk.get(node)
       JSON.parse(data)
     rescue ZK::Exceptions::NoNode
       @log.info "node #{node} disappeared"
