@@ -2,6 +2,7 @@ require 'zk'
 require 'fog'
 require 'json'
 require 'logger'
+require 'hash_deep_merge'
 
 class Store
 
@@ -48,19 +49,13 @@ class Store
   def nodes()
     from_server = {}
 
-    @zk.children('/').each do |child|
-      begin
-        data, stat = @zk.get("/#{child}")
-        from_server[child] = JSON.parse(data)
-      rescue ZK::Exceptions::NoNode
-        @log.info "child #{child} disappeared"
-      rescue JSON::ParserError
-        @log.warn "removing invalid node #{child}: data failed to parse (#{child_info.inspect})"
-        delete(child)
-      rescue Exception => e
-        @log.error "unexpected error reading from zk! #{e.inspect}"
-        stop
+    begin
+      @zk.children('/').each do |child|
+        from_server[child] = get_node(child)
       end
+    rescue Exception => e
+      @log.error "unexpected error reading from zk! #{e.inspect}"
+      stop
     end
 
     from_server
@@ -68,7 +63,11 @@ class Store
 
   def add(node, data)
     child = "/#{node}"
-    data = data.to_json
+
+    # deep-merge the old and new data
+    prev_data = get_node(child)
+    data = prev_data.deep_merge(data).to_json
+
     @log.debug "writing to zk at #{child} with #{data}"
 
     begin
@@ -101,6 +100,24 @@ class Store
   end
 
   private
+  def get_node(node)
+    begin
+      data, stat = @zk.get("/#{node}")
+      JSON.parse(data)
+    rescue ZK::Exceptions::NoNode
+      @log.info "node #{node} disappeared"
+      {}
+    rescue JSON::ParserError
+      @log.warn "removing invalid node #{node}: data failed to parse (#{data.inspect})"
+      delete(node)
+      {}
+    rescue Exception => e
+      @log.error "unexpected error reading from zk! #{e.inspect}"
+      stop
+      {}
+    end
+  end
+
   def sync()
     @log.debug "starting sync thread"
 
