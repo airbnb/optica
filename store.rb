@@ -18,8 +18,7 @@ class Store
     end
 
     @path = opts['zk_path']
-    @aws_key = opts['aws_access_key']
-    @aws_secret = opts['aws_secret_key']
+    @creds = {:provider => 'AWS', :aws_access_key_id => opts['aws_access_key'], :aws_secret_access_key => opts['aws_secret_key']}
 
     @sync_interval = 30
     @sync_interval = opts['sync_interval'].to_i if opts.include?('sync_interval')
@@ -27,7 +26,7 @@ class Store
     @zk = nil
     @ips = []
     @stopping = false
-    @synced_once = false
+    @last_sync = Time.new(0)
   end
 
   def start()
@@ -92,12 +91,22 @@ class Store
   end
 
   def healthy?()
-    return false if @stopping
-    return false unless @synced_once
-    return false unless @zk
-    return false unless @zk.ping?
+    healthy = true
+    if @stopping
+      @log.warn "not healthy because stopping..."
+      healthy = false
+    elsif (Time.now() - @last_sync) > (4 * @sync_interval)
+      @log.warn "not healthy because too long since sync..."
+      healthy = false
+    elsif not @zk
+      @log.warn "not healthy because no zookeeper..."
+      healthy = false
+    elsif not @zk.ping?
+      @log.warn "not healthy because zookeeper not available..."
+      healthy = false
+    end
 
-    return true
+    return healthy
   end
 
   private
@@ -129,7 +138,7 @@ class Store
         @zk.ping?
         sync_aws
 
-        @synced_once = true
+        @last_sync = Time.now
 
         @log.info "sync complete, sleeping for #{@sync_interval}"
         sleep @sync_interval
@@ -149,11 +158,10 @@ class Store
     @log.debug "list all ips on all instances in ec2"
     ips = []
 
-    creds = {:provider => 'AWS', :aws_access_key_id => @aws_key, :aws_secret_access_key => @aws_secret}
-    f = Fog::Compute.new(creds)
+    f = Fog::Compute.new(@creds)
     f.describe_regions.body['regionInfo'].each do |regionInfo|
-      creds[:region] = regionInfo['regionName']
-      con = Fog::Compute.new(creds)
+      con = Fog::Compute.new(
+        @creds.merge(:region => regionInfo['regionName']))
       con.servers.each do |server|
         ips << server.private_ip_address
       end
