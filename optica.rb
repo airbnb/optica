@@ -3,6 +3,10 @@ require 'json'
 require 'cgi'
 
 class Optica < Sinatra::Base
+  configure :production, :development do
+    enable :logging
+  end
+
   get '/' do
     params = CGI::parse(request.query_string)
 
