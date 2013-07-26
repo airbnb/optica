@@ -2,6 +2,7 @@
 
 Optica is a service for registering and locating nodes.
 It provides a simple REST API.
+You'll probably find it running at http://optica.d.musta.ch.
 
 Nodes can POST to / to register themselves with some parameters.
 Humans can GET / to get a list of all registered nodes.
