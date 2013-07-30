@@ -25,7 +25,6 @@ class Store
 
     @zk = nil
     @ips = []
-    @stopping = false
     @last_sync = Time.new(0)
   end
 
@@ -34,15 +33,15 @@ class Store
     @zk = ZK.new(@path)
     @zk.ping?
 
-    @log.info "ZK connection established successfully"
-    Thread.new{sync}
-
-    at_exit { stop }
+    @log.info 'ZK connection established successfully'
+    @sync_thread = Thread.new{sync}
   end
 
   def stop()
-    @stopping = true
-    Process.kill("TERM", Process.pid)
+    Process.kill("TERM", Process.pid) unless $EXIT
+
+    @log.debug 'stopping sync thread'
+    @sync_thread.kill
   end
 
   def nodes()
@@ -92,17 +91,17 @@ class Store
 
   def healthy?()
     healthy = true
-    if @stopping
-      @log.warn "not healthy because stopping..."
+    if $EXIT
+      @log.warn 'not healthy because stopping...'
       healthy = false
     elsif (Time.now() - @last_sync) > (4 * @sync_interval)
-      @log.warn "not healthy because too long since sync..."
+      @log.warn 'not healthy because too long since sync...'
       healthy = false
     elsif not @zk
-      @log.warn "not healthy because no zookeeper..."
+      @log.warn 'not healthy because no zookeeper...'
       healthy = false
     elsif not @zk.ping?
-      @log.warn "not healthy because zookeeper not available..."
+      @log.warn 'not healthy because zookeeper not available...'
       healthy = false
     end
 
@@ -124,39 +123,32 @@ class Store
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
       stop
-      {}
     end
   end
 
   def sync()
-    @log.debug "starting sync thread"
+    @log.debug 'starting sync thread'
 
-    while not @stopping
-      begin
-        @log.debug "starting sync"
+    while not $EXIT
+      @log.debug 'starting sync'
+      Timeout.timeout(4 * @sync_interval) { sync_aws }
 
-        @zk.ping?
-        sync_aws
+      @last_sync = Time.now
 
-        @last_sync = Time.now
-
+      unless $EXIT
         @log.info "sync complete, sleeping for #{@sync_interval}"
         sleep @sync_interval
-
-      rescue Exception => e
-        @log.error "unexpected exception in store sync thread! #{e.inspect}"
-        @stopping = true
-        break
       end
     end
 
-    @log.info "sync thread exited; stopping everything"
+  rescue Exception => e
+    @log.error "unexpected exception in store sync thread! #{e.inspect}"
     stop
   end
 
   def sync_aws()
-    @log.debug "list all ips on all instances in ec2"
-    ips = []
+    @log.debug 'list all ips on all instances in ec2'
+    ips = ['127.0.0.1']  # always included for dev purposes
 
     f = Fog::Compute.new(@creds)
     f.describe_regions.body['regionInfo'].each do |regionInfo|

@@ -54,12 +54,14 @@ class Optica < Sinatra::Base
     halt(403) unless settings.store.ips.include? ip
 
     settings.store.add(ip, data)
+    settings.events.send(data)
+
     content_type 'text/plain', :charset => 'utf-8'
     return 'stored'
   end
 
   get '/health' do
-    if settings.store.healthy?
+    if settings.store.healthy? and settings.events.healthy?
       content_type 'text/plain', :charset => 'utf-8'
       return "OK"
     else
