@@ -4,9 +4,7 @@ require 'thread'
 
 class Events
   def initialize(opts)
-    @log = Logger.new(STDOUT)
-    @log.progname = self.class.name
-    @log.level = Logger::INFO unless opts['debug']
+    @log = opts['log']
 
     %w{rabbit_host rabbit_port}.each do |req|
       raise ArgumentError, "missing required argument '#{req}'" unless opts[req]

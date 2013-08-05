@@ -1,6 +1,14 @@
 require 'json'
 opts = JSON.parse( File.read('config.json') )
 
+# prepare the logger
+require 'logger'
+log = Logger.new(STDERR)
+log.progname = 'optica'
+log.level = Logger::INFO unless opts['debug']
+
+opts['log'] = log
+
 # prepare to exit cleanly
 $EXIT = false
 
@@ -17,6 +25,8 @@ events.start
 # set a signal handler
 ['INT', 'TERM', 'QUIT'].each do |signal|
   trap(signal) do
+    log.warn "Got signal #{signal} -- exit currently #{$EXIT}"
+
     exit! if $EXIT
     $EXIT = true
 
@@ -35,4 +45,6 @@ end
 require './optica.rb'
 Optica.set :store, store
 Optica.set :events, events
+
+log.info "Starting sinatra server..."
 run Optica
