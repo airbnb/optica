@@ -1,7 +1,6 @@
 require 'zk'
 require 'fog'
 require 'json'
-require 'logger'
 require 'hash_deep_merge'
 
 class Store
@@ -9,9 +8,7 @@ class Store
   attr_reader :ips
 
   def initialize(opts)
-    @log = Logger.new(STDOUT)
-    @log.progname = self.class.name
-    @log.level = Logger::INFO unless opts['debug']
+    @log = opts['log']
 
     %w{zk_path aws_access_key aws_secret_key}.each do |req|
       raise ArgumentError, "missing required argument '#{req}'" unless opts[req]
