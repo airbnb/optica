@@ -31,17 +31,56 @@ Then, we did the following:
 ```ruby
 directory node.common.notifier_dir
 
-cookbook_file options[:filename] do
+cookbook_file `reporter.rb` do
   path File.join(node.common.notifier_dir, 'reporter.rb')
 end
 
-chef_handler notifier do
+chef_handler 'notifier' do
   action    :enable
   source    File.join(node.common.notifier_dir, 'reporter.rb')
 end
 ```
 
-If you wish to register additional key-value pairs with your node, simply add them to `node.optica.report`.
+If you wish to register additional key-value pairs with your node, simply add them to `node.optica.report`:
+
+```ruby
+default.optica.report['jvm_version'] = node.java.version
+```
+
+## Usage on the command line ##
+
+Optica has a very minimal query syntax, and errs on the side of returning more information than you need.
+Really, the only reason for the query parameters is to limit the amount of data transfered over the network.
+We can get away with it because all of the complex functionality you might wish for on the command line is provided by JQ.
+
+### JQ examples ###
+
+Let's define a basic optica script:
+```bash
+#!/bin/bash
+
+curl http://optica/?"$1" | jq --compact-output ".[nodes] | $2"
+```
+
+With this in your `$PATH`, here are some examples:
+
+##### Getting all hostnames by role: #####
+
+I run this, then pick a random one to ssh into when, e.g., investigating issues.
+
+`$ optica role=myrole .hostname`
+
+##### How many of each role in us-east-1a or 1b? ####
+
+See what the impact will be of an outage in those two zones:
+
+`$ optica az=us-east 'select(.az == "us-east-1a" or .az == "us-east-1b") | .role' | sort | uniq -c`
+
+##### Monitor the progress of a chef run on a role ####
+
+Useful if you've just initiated a chef run across a large number of machines, or are waiting for scheduled runs to complete to deploy your change:
+
+`$ optica role=myrole '[.last_start, .failed, .hostname]' | sort`
 
 ## Usage with Fabric ##
 
@@ -65,7 +104,7 @@ The example config is set up to talk to your local zookeeper:
 
 ```bash
 $ cd optica
-$ ln -s config.json.example config.json
+$ cp config.json.example config.json
 ```
 
 We run `optica` via thin.
@@ -74,4 +113,3 @@ To spin up a test process on port 4567:
 ```bash
 $ thin start -p 4567
 ```
-
