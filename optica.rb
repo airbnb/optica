@@ -50,8 +50,7 @@ class Optica < Sinatra::Base
 
     # the node ip is in the request
     ip = request.ip
-
-    halt(403) unless settings.store.ips.include? ip
+    halt(403) unless data['ip'] == ip
 
     settings.store.add(ip, data)
     settings.events.send(data)
