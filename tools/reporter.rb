@@ -7,6 +7,7 @@ module Optica
   class Reporter < Chef::Handler
 
     def report
+      optica_server = 'optica.example.com'
       data = {}
 
       # include self-reported attributes if present
@@ -32,7 +33,7 @@ module Optica
       Chef::Log.info "Sending run data to optica"
       tries = 0
       begin
-        connection = Net::HTTP.new('optica.example', 8080)
+        connection = Net::HTTP.new(optica_server, 8080)
         result = connection.post('/', data.to_json)
 
         if result.code.to_i >= 200 and result.code.to_i < 300

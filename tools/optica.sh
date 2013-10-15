@@ -1,4 +1,5 @@
 #!/bin/bash
 set -o xtrace
 
-curl 2>/dev/null http://optica/?"$1" | jq --compact-output ".nodes[] | $2"
+my_optica_host='https://optica.example.com'
+curl --silent ${my_optica_host}/?"$1" | jq --compact-output ".nodes[] | $2"

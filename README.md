@@ -2,7 +2,6 @@
 
 Optica is a service for registering and locating nodes.
 It provides a simple REST API.
-You'll probably find it running at http://optica.d.musta.ch.
 
 Nodes can POST to / to register themselves with some parameters.
 Humans can GET / to get a list of all registered nodes.
@@ -19,14 +18,14 @@ $ bundle install
 
 ## Usage with Chef ##
 
-We loved the node registration features of [chef server](http://docs.opscode.com/chef_overview_server.html).
+We love the node registration features of [chef server](http://docs.opscode.com/chef_overview_server.html).
 However, we run chef-solo here at [Airbnb](www.airbnb.com).
 We use optica as alternate node registration system.
 
-We've included a sample notifier which phones back to optica on every chef converge.
-It's in this repo in `reporter.rb`.
-To use it, we added the [chef-handler cookbook](https://github.com/opscode-cookbooks/chef_handler).
-Then, we did the following:
+We've included a sample notifier which reports back to optica on every chef converge.
+It's in this repo in `reporter.rb`, just make sure to substitute the
+correct value for the `optica_server` option. To use it, we added the [chef-handler cookbook](https://github.com/opscode-cookbooks/chef_handler).
+Then, we do the following:
 
 ```ruby
 directory node.common.notifier_dir
@@ -51,7 +50,7 @@ default.optica.report['jvm_version'] = node.java.version
 
 Optica has a very minimal query syntax, and errs on the side of returning more information than you need.
 Really, the only reason for the query parameters is to limit the amount of data transfered over the network.
-We can get away with it because all of the complex functionality you might wish for on the command line is provided by JQ.
+We can get away with it because all of the complex functionality you might wish for on the command line is provided by [JQ](http://stedolan.github.io/jq/).
 
 ### JQ examples ###
 
@@ -59,10 +58,11 @@ Let's define a basic optica script:
 ```bash
 #!/bin/bash
 
-curl http://optica/?"$1" | jq --compact-output ".[nodes] | $2"
+my_optica_host='https://optica.example.com'
+curl --silent ${my_optica_host}/?"$1" | jq --compact-output ".nodes[] | $2"
 ```
 
-With this in your `$PATH`, here are some examples:
+With this in your `$PATH` and the right subsitution for your optica endpoint, here are some examples:
 
 ##### Getting all hostnames by role: #####
 
@@ -74,7 +74,7 @@ I run this, then pick a random one to ssh into when, e.g., investigating issues.
 
 See what the impact will be of an outage in those two zones:
 
-`$ optica az=us-east 'select(.az == "us-east-1a" or .az == "us-east-1b") | .role' | sort | uniq -c`
+`$ optica az=us-east 'select(.az == "us-east-1a" or .az == "us-east-1b") | .role' | sort | uniq -c | sort -n `
 
 ##### Monitor the progress of a chef run on a role ####
 
@@ -89,7 +89,7 @@ Simply replace `optica.example` with the address to your optica install.
 
 ## Development ##
 
-You'll need a copy of zookeeper running locally, and it should have the right path for optica:
+You'll need a copy of zookeeper running locally, and it should have the correct path for optica:
 
 ```bash
 $ zkServer start
@@ -106,6 +106,7 @@ The example config is set up to talk to your local zookeeper:
 $ cd optica
 $ cp config.json.example config.json
 ```
+Edit the default config and add your EC2 credentials.
 
 We run `optica` via thin.
 To spin up a test process on port 4567:
