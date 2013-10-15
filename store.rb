@@ -97,8 +97,8 @@ class Store
     elsif not @zk
       @log.warn 'not healthy because no zookeeper...'
       healthy = false
-    elsif not @zk.ping?
-      @log.warn 'not healthy because zookeeper not available...'
+    elsif not @zk.connected?
+      @log.warn 'not healthy because zookeeper not connected...'
       healthy = false
     end
 

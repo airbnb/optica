@@ -60,6 +60,18 @@ class Optica < Sinatra::Base
     return 'stored'
   end
 
+  delete '/:hostname' do |hostname|
+    matching = settings.store.nodes.select{ |k,v| v['hostname'] == hostname }
+    if matching.length == 0
+      return 204
+    elsif matching.length == 1
+      settings.store.delete(matching[0]['ip'])
+      return "deleted"
+    else
+      return [409, "found multiple entries matching hostname #{hostname}"]
+    end
+  end
+
   get '/health' do
     if settings.store.healthy? and settings.events.healthy?
       content_type 'text/plain', :charset => 'utf-8'
