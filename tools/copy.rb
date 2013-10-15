@@ -1,5 +1,8 @@
 #!/usr/bin/ruby
 
+# this script might come in handy for moving optica data
+# from one ZK cluster to another
+
 require 'zk'
 
 dest_zk = 'new-zk:2181/optica'
