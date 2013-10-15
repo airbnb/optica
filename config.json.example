@@ -1,7 +1,4 @@
 {
   "zk_path":"localhost:2181/optica",
-  "aws_access_key":"AKIAJH4DKFJMWKKJ6KFQ",
-  "aws_secret_key":"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",
-  "sync_interval":5,
   "debug":true
 }

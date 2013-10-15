@@ -10,19 +10,13 @@ class Store
   def initialize(opts)
     @log = opts['log']
 
-    %w{zk_path aws_access_key aws_secret_key}.each do |req|
-      raise ArgumentError, "missing required argument '#{req}'" unless opts[req]
+    unless opts['zk_path']
+      raise ArgumentError, "missing required argument 'zk_path'"
+    else
+      @path = opts['zk_path']
     end
 
-    @path = opts['zk_path']
-    @creds = {:provider => 'AWS', :aws_access_key_id => opts['aws_access_key'], :aws_secret_access_key => opts['aws_secret_key']}
-
-    @sync_interval = 30
-    @sync_interval = opts['sync_interval'].to_i if opts.include?('sync_interval')
-
     @zk = nil
-    @ips = []
-    @last_sync = Time.new(0)
   end
 
   def start()
@@ -31,14 +25,10 @@ class Store
     @zk.ping?
 
     @log.info 'ZK connection established successfully'
-    @sync_thread = Thread.new{sync}
   end
 
   def stop()
-    Process.kill("TERM", Process.pid) unless $EXIT
-
-    @log.debug 'stopping sync thread'
-    @sync_thread.kill
+    @zk.close()
   end
 
   def nodes()
@@ -91,9 +81,6 @@ class Store
     if $EXIT
       @log.warn 'not healthy because stopping...'
       healthy = false
-    elsif (Time.now() - @last_sync) > (4 * @sync_interval)
-      @log.warn 'not healthy because too long since sync...'
-      healthy = false
     elsif not @zk
       @log.warn 'not healthy because no zookeeper...'
       healthy = false
@@ -120,60 +107,6 @@ class Store
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
       stop
-    end
-  end
-
-  def sync()
-    @log.debug 'starting sync thread'
-
-    while not $EXIT
-      @log.debug 'starting sync'
-      Timeout.timeout(4 * @sync_interval) { sync_aws }
-
-      @last_sync = Time.now
-
-      unless $EXIT
-        @log.info "sync complete, sleeping for #{@sync_interval}"
-        sleep @sync_interval
-      end
-    end
-
-  rescue Exception => e
-    @log.error "unexpected exception in store sync thread! #{e.inspect}"
-    stop
-  end
-
-  def sync_aws()
-    @log.debug 'list all ips on all instances in ec2'
-    ips = ['127.0.0.1']  # always included for dev purposes
-
-    f = Fog::Compute.new(@creds)
-    f.describe_regions.body['regionInfo'].each do |regionInfo|
-      con = Fog::Compute.new(
-        @creds.merge(:region => regionInfo['regionName']))
-      con.servers.each do |server|
-        ips << server.private_ip_address
-      end
-
-      @log.debug "#{ips.count} ips so far..."
-    end
-
-    # save aws ips
-    @ips = ips
-
-    cur_nodes = nodes
-
-    stale = cur_nodes.keys.select{ |ip| not ips.include? ip }
-    ratio = (stale.count.to_f / cur_nodes.count.to_f) * 100
-
-    if ratio > 10
-      @log.warn "#{stale.count} of #{cur_nodes.count} stale nodes is too many; skipping cleanup"
-    else
-      @log.info "Cleaning up #{stale.count} stale nodes (#{ratio}%)"
-      stale.each do |ip|
-        @log.info "deleting stale node #{ip} (#{cur_nodes[ip].inspect})"
-        delete(ip)
-      end
     end
   end
 end
