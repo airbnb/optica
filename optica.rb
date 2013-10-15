@@ -64,7 +64,7 @@ class Optica < Sinatra::Base
     if matching.length == 0
       return 204
     elsif matching.length == 1
-      settings.store.delete(matching[0]['ip'])
+      settings.store.delete(matching.flatten[1]['ip'])
       return "deleted"
     else
       return [409, "found multiple entries matching hostname #{hostname}"]
