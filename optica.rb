@@ -50,14 +50,25 @@ class Optica < Sinatra::Base
 
     # the node ip is in the request
     ip = request.ip
-
-    halt(403) unless settings.store.ips.include? ip
+    halt(403) unless data['ip'] == ip
 
     settings.store.add(ip, data)
     settings.events.send(data)
 
     content_type 'text/plain', :charset => 'utf-8'
     return 'stored'
+  end
+
+  delete '/:hostname' do |hostname|
+    matching = settings.store.nodes.select{ |k,v| v['hostname'] == hostname }
+    if matching.length == 0
+      return 204
+    elsif matching.length == 1
+      settings.store.delete(matching[0]['ip'])
+      return "deleted"
+    else
+      return [409, "found multiple entries matching hostname #{hostname}"]
+    end
   end
 
   get '/health' do
