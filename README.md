@@ -34,12 +34,6 @@ Why Zookeeper?
 * we already rely critically on Zookeeper to connect our infrastructure; we strive to ensure maximum uptime for this system
 * the load patterns of optica (many reads, infrequenty writes) match what zookeeper provides
 
-### AWS ###
-
-Optica is currently tied directly into AWS to determine which instances persist in the data (and which ones can register in the first place).
-We are planning to remove this dependency by providing a mechanism to explicitly remove entries.
-The AWS authentication by IP is fairly naive; we recommend using L3 security to lock down access to optica and prevent spurious registration.
-
 ### Rabbitmq ###
 
 Some parts of our infrastructure are asynchronous; we rely on notification of converges to know, for example, when some kinds of deploys have completed (or failed).
@@ -111,6 +105,19 @@ Useful if you've just initiated a chef run across a large number of machines, or
 
 We've included a sample `fabfile.py` to get you started.
 Simply replace `optica.example` with the address to your optica install.
+
+## Cleanup ##
+
+Optica relies on you manually cleaning up expired nodes.
+At Airbnb, all of our nodes run in Amazon's EC2.
+We have a regularly scheduled task which grabs all recently terminated instances and performs cleanup, including optica cleanup, on those instances.
+
+Cleanup is accomplished by calling `DELETE` on optica.
+For instance:
+
+```bash
+$ curl -X DELETE http://optica.example.com/i-36428351
+```
 
 ## Development ##
 
