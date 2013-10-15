@@ -1,4 +1,4 @@
-# optica #
+# Optica #
 
 Optica is a service for registering and locating nodes.
 It provides a simple REST API.
@@ -6,6 +6,12 @@ It provides a simple REST API.
 Nodes can POST to / to register themselves with some parameters.
 Humans can GET / to get a list of all registered nodes.
 GET also accepts some parameters to limit which of the registered nodes you see.
+
+## Why Optica? ##
+
+We love the node registration features of [chef server](http://docs.opscode.com/chef_overview_server.html).
+However, we run chef-solo here at [Airbnb](www.airbnb.com).
+We use optica as alternate node registration system.
 
 ## Installation ##
 
@@ -16,16 +22,35 @@ To install all the dependencies:
 $ bundle install
 ```
 
-## Usage with Chef ##
+## Dependencies ##
 
-We love the node registration features of [chef server](http://docs.opscode.com/chef_overview_server.html).
-However, we run chef-solo here at [Airbnb](www.airbnb.com).
-We use optica as alternate node registration system.
+### Zookeeper ###
+
+Optica is a front-end to a data store.
+At Airbnb, this data store is [Apache Zookeeper](https://zookeeper.apache.org/).
+
+Why Zookeeper?
+* we consider optica information critical data, with high uptime requirements
+* we already rely critically on Zookeeper to connect our infrastructure; we strive to ensure maximum uptime for this system
+* the load patterns of optica (many reads, infrequenty writes) match what zookeeper provides
+
+### AWS ###
+
+Optica is currently tied directly into AWS to determine which instances persist in the data (and which ones can register in the first place).
+We are planning to remove this dependency by providing a mechanism to explicitly remove entries.
+The AWS authentication by IP is fairly naive; we recommend using L3 security to lock down access to optica and prevent spurious registration.
+
+### Rabbitmq ###
+
+Some parts of our infrastructure are asynchronous; we rely on notification of converges to know, for example, when some kinds of deploys have completed (or failed).
+For this reason, Optica generates events in [rabbitmq](http://www.rabbitmq.com/) for every converge.
+
+## Usage with Chef ##
 
 We've included a sample notifier which reports back to optica on every chef converge.
 It's in this repo in `reporter.rb`, just make sure to substitute the
 correct value for the `optica_server` option. To use it, we added the [chef-handler cookbook](https://github.com/opscode-cookbooks/chef_handler).
-Then, we do the following:
+Then, we do the following (in our common cookbook, which is applied to every role):
 
 ```ruby
 directory node.common.notifier_dir
@@ -106,6 +131,7 @@ The example config is set up to talk to your local zookeeper:
 $ cd optica
 $ cp config.json.example config.json
 ```
+
 Edit the default config and add your EC2 credentials.
 
 We run `optica` via thin.
