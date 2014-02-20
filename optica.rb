@@ -13,7 +13,13 @@ class Optica < Sinatra::Base
     # include only those nodes that match passed-in parameters
     examined = 0
     to_return = {}
-    settings.store.nodes.each do |node, properties|
+    begin
+      nodes = settings.store.nodes
+    rescue
+      halt(503)
+    end
+
+    nodes.each do |node, properties|
       examined += 1
       included = true
 
@@ -52,8 +58,12 @@ class Optica < Sinatra::Base
     ip = request.ip
     halt(403) unless data['ip'] == ip
 
-    settings.store.add(ip, data)
-    settings.events.send(data)
+    begin
+      settings.store.add(ip, data)
+      settings.events.send(data)
+    rescue
+      halt(500)
+    end
 
     content_type 'text/plain', :charset => 'utf-8'
     return 'stored'
@@ -64,8 +74,13 @@ class Optica < Sinatra::Base
     if matching.length == 0
       return 204
     elsif matching.length == 1
-      settings.store.delete(matching.flatten[1]['ip'])
-      return "deleted"
+      begin
+        settings.store.delete(matching.flatten[1]['ip'])
+      rescue
+        halt(500)
+      else
+        return "deleted"
+      end
     else
       return [409, "found multiple entries matching hostname #{hostname}"]
     end
