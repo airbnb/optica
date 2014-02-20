@@ -39,6 +39,7 @@ class Events
   rescue Exception => e
     @log.error "unexpected error publishing to rabbitmq: #{e.inspect}"
     stop
+    raise e
   else
     @log.debug "published an event to #{@routing}"
   end
@@ -53,6 +54,7 @@ class Events
   end
 
   def stop
+    @log.warn "stopping the events interface"
     Process.kill("TERM", Process.pid) unless $EXIT
     @connection.close if @connection
   end
