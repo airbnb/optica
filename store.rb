@@ -28,7 +28,9 @@ class Store
   end
 
   def stop()
-    @zk.close()
+    @log.warn "stopping the store"
+    Process.kill("TERM", Process.pid) unless $EXIT
+    @zk.close() if @zk
   end
 
   def nodes()
@@ -41,6 +43,7 @@ class Store
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
       stop
+      raise e
     end
 
     from_server
@@ -62,6 +65,7 @@ class Store
     rescue Exception => e
       @log.error "unexpected error writing to zk! #{e.inspect}"
       stop
+      raise e
     end
   end
 
@@ -73,6 +77,7 @@ class Store
     rescue Exception => e
       @log.error "unexpected error deleting nodes in zk! #{e.inspect}"
       stop
+      raise e
     end
   end
 
@@ -107,6 +112,7 @@ class Store
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
       stop
+      raise e
     end
   end
 end
