@@ -41,10 +41,19 @@ events.start
   end
 end
 
+# do we check the client IP?
+ip_check = case opts['client_check']
+when true, 'direct' then :direct
+when 'forwarded_for' then :forwarded_for
+when false, nil then false
+else raise 'unknown value for ip_check option'
+end
+
 # start the app
 require './optica.rb'
 Optica.set :store, store
 Optica.set :events, events
+Optica.set :ip_check, ip_check
 
 log.info "Starting sinatra server..."
 run Optica

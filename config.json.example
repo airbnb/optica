@@ -1,4 +1,5 @@
 {
   "zk_path":"localhost:2181/optica",
-  "debug":true
+  "debug":true,
+  "ip_check":true
 }
