@@ -54,14 +54,16 @@ class Optica < Sinatra::Base
       data = {}
     end
 
+    ip = data['ip']
+
     # check the node ip? disabled by false and nil
     case settings.ip_check
     when :direct
-      halt(403) unless data['ip'] == request.ip
+      halt(403) unless ip == request.ip
     when :forwarded_for
       header = env['HTTP_X_FORWARDED_FOR']
       halt(500) unless header
-      halt(403) unless data['ip'] == header.split(',').first
+      halt(403) unless ip == header.split(',').first
     end
 
     begin
