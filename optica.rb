@@ -91,7 +91,7 @@ class Optica < Sinatra::Base
       content_type 'text/plain', :charset => 'utf-8'
       return "OK"
     else
-      halt(503)
+      return [503, 'not healthy!']
     end
   end
 

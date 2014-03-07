@@ -1,6 +1,5 @@
 
-require 'amqp'
-require 'thread'
+require 'stomp'
 
 class Events
   def initialize(opts)
@@ -10,10 +9,18 @@ class Events
       raise ArgumentError, "missing required argument '#{req}'" unless opts[req]
     end
 
-    @host = opts['rabbit_host']
-    @port = opts['rabbit_port']
-    @user = opts['rabbit_user'] || 'guest'
-    @pass = opts['rabbit_pass'] || 'guest'
+    @connect_hash = {
+      :hosts => [{
+          :host => opts['rabbit_host'],
+          :port => opts['rabbit_port'],
+          :login => opts['rabbit_user'] || 'guest',
+          :passcode => opts['rabbit_pass'] || 'guest',
+        }],
+      :reliable => true,
+      :autoflush => true,
+      :connect_timeout => 10,
+      :logger => @log,
+    }
 
     @exchange_name  = opts['exchange_name']  || 'ops'
     @routing        = opts['routing']        || 'events.node.converged'
@@ -21,21 +28,11 @@ class Events
   end
 
   def start
-    EventMachine.next_tick {
-      @connection = AMQP.connect(
-        :host => @host,
-        :port => @port,
-        :user => @user,
-        :pass => @pass,
-        :heartbeat => 5)
-
-      channel  = AMQP::Channel.new(@connection)
-      @exchange = channel.topic(@exchange_name, :durable => true)
-    }
+    @client = Stomp::Client.new(@connect_hash)
   end
 
   def send(data)
-    @exchange.publish(data.to_json, :routing_key => @routing, :persistent => true)
+    @client.publish("/exchange/#{@exchange_name}/#{@routing}", data.to_json, {:persistent => true})
   rescue Exception => e
     @log.error "unexpected error publishing to rabbitmq: #{e.inspect}"
     stop
@@ -45,8 +42,9 @@ class Events
   end
 
   def healthy?
-    @exchange.publish("", :routing_key => @health_routing)
-  rescue
+    @client.publish("/exchange/#{@exchange_name}/#{@health_routing}", '')
+  rescue StandardError => e
+    @log.error "events interface failed health check: #{e.inspect}"
     false
   else
     @log.debug "events interface healthy"
@@ -56,6 +54,6 @@ class Events
   def stop
     @log.warn "stopping the events interface"
     Process.kill("TERM", Process.pid) unless $EXIT
-    @connection.close if @connection
+    @client.close if @client
   end
 end
