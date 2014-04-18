@@ -1,5 +1,7 @@
 {
   "zk_path":"localhost:2181/optica",
   "debug":true,
-  "ip_check":true
+  "ip_check":true,
+  "rabbit_host":"127.0.0.1",
+  "rabbit_port":5672
 }
