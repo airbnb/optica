@@ -27,6 +27,8 @@ class Optica < Sinatra::Base
         values.each do |value|
           if not properties.include? param
             included = false
+          elsif properties[param].nil?
+            included = false
           elsif properties[param].is_a? String
             included = false unless properties[param].match value
           elsif properties[param].is_a? Array
