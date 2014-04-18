@@ -1,5 +1,4 @@
 require 'zk'
-require 'fog'
 require 'json'
 require 'hash_deep_merge'
 
