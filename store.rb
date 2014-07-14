@@ -53,14 +53,17 @@ class Store
 
     # deep-merge the old and new data
     prev_data = get_node(child)
-    data = prev_data.deep_merge(data).to_json
+    new_data = prev_data.deep_merge(data)
+    json_data = new_data.to_json
 
-    @log.debug "writing to zk at #{child} with #{data}"
+    @log.debug "writing to zk at #{child} with #{json_data}"
 
     begin
-      @zk.set(child, data)
+      @zk.set(child, json_data)
+      new_data
     rescue ZK::Exceptions::NoNode => e
-      @zk.create(child, :data =>data)
+      @zk.create(child, :data => json_data)
+      new_data
     rescue Exception => e
       @log.error "unexpected error writing to zk! #{e.inspect}"
       stop
