@@ -79,8 +79,8 @@ class Optica < Sinatra::Base
     return 'stored'
   end
 
-  delete '/:hostname' do |hostname|
-    matching = settings.store.nodes.select{ |k,v| v['hostname'] == hostname }
+  delete '/:id' do |id|
+    matching = settings.store.nodes.select{ |k,v| v['id'] == id }
     if matching.length == 0
       return 204
     elsif matching.length == 1
@@ -92,7 +92,7 @@ class Optica < Sinatra::Base
         return "deleted"
       end
     else
-      return [409, "found multiple entries matching hostname #{hostname}"]
+      return [409, "found multiple entries matching id #{id}"]
     end
   end
 
