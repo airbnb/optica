@@ -69,8 +69,9 @@ class Optica < Sinatra::Base
     end
 
     begin
+      mini_converge = data.key?('last_mini_converge')
       merged_data = settings.store.add(ip, data)
-      settings.events.send(merged_data)
+      settings.events.send(merged_data.merge("mini_converge" => mini_converge))
     rescue
       halt(500)
     end
