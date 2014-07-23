@@ -70,7 +70,7 @@ class Optica < Sinatra::Base
 
     begin
       merged_data = settings.store.add(ip, data)
-      settings.events.send(merged_data)
+      settings.events.send(merged_data.merge("event" => data))
     rescue
       halt(500)
     end
