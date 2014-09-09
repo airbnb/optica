@@ -141,9 +141,9 @@ $ cp config.json.example config.json
 
 Edit the default config and add your EC2 credentials.
 
-We run `optica` via thin.
+We run `optica` via unicorn.
 To spin up a test process on port 4567:
 
 ```bash
-$ thin start -p 4567
+$ unicorn -p 4567
 ```
