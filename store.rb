@@ -21,9 +21,15 @@ class Store
   def start()
     @log.info "waiting to connect to zookeeper at #{@path}"
     @zk = ZK.new(@path)
+    @zk.on_state_change do |event|
+      @log.info "zk state changed, state=#{@zk.state]}, session_id=#{session_id}"
+    end
     @zk.ping?
+    @log.info "ZK connection established successfully. session_id=#{session_id}"
+  end
 
-    @log.info 'ZK connection established successfully'
+  def session_id
+    '0x%x' % @zk.session_id rescue nil
   end
 
   def stop()
@@ -41,7 +47,6 @@ class Store
       end
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
-      stop
       raise e
     end
 
@@ -66,7 +71,6 @@ class Store
       new_data
     rescue Exception => e
       @log.error "unexpected error writing to zk! #{e.inspect}"
-      stop
       raise e
     end
   end
@@ -78,7 +82,6 @@ class Store
       @zk.delete("/" + node, :ignore => :no_node)
     rescue Exception => e
       @log.error "unexpected error deleting nodes in zk! #{e.inspect}"
-      stop
       raise e
     end
   end
@@ -95,7 +98,6 @@ class Store
       @log.warn 'not healthy because zookeeper not connected...'
       healthy = false
     end
-
     return healthy
   end
 
@@ -113,7 +115,6 @@ class Store
       {}
     rescue Exception => e
       @log.error "unexpected error reading from zk! #{e.inspect}"
-      stop
       raise e
     end
   end
