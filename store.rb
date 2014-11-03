@@ -22,7 +22,7 @@ class Store
     @log.info "waiting to connect to zookeeper at #{@path}"
     @zk = ZK.new(@path)
     @zk.on_state_change do |event|
-      @log.info "zk state changed, state=#{@zk.state]}, session_id=#{session_id}"
+      @log.info "zk state changed, state=#{@zk.state}, session_id=#{session_id}"
     end
     @zk.ping?
     @log.info "ZK connection established successfully. session_id=#{session_id}"
