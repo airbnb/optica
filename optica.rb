@@ -76,18 +76,15 @@ class Optica < Sinatra::Base
     end
 
     # publish update event
-    error_msg = ""
+    message = 'stored'
     begin
       settings.events.send(merged_data.merge("event" => data))
     rescue => e
-      error_msg = e.to_s
+      # If event publishing failed, we treat it as a warning rather than an error.
+      message += " -- [warning] failed to publish to rabbitmq: #{e.to_s}"
     end
 
     content_type 'text/plain', :charset => 'utf-8'
-
-    # If event publishing failed, we treat it as a warning rather than an error.
-    message = 'stored'
-    message += " -- [warning] failed to publish to rabbitmq: #{error_msg}" if error_msg != ""
 
     return message
   end
