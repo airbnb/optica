@@ -79,7 +79,7 @@ class Optica < Sinatra::Base
     error_msg = ""
     begin
       settings.events.send(merged_data.merge("event" => data))
-    rescue Exception => e
+    rescue => e
       error_msg = e.to_s
     end
 
