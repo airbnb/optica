@@ -35,7 +35,6 @@ class Events
     @client.publish("/exchange/#{@exchange_name}/#{@routing}", data.to_json, {:persistent => true})
   rescue Exception => e
     @log.error "unexpected error publishing to rabbitmq: #{e.inspect}"
-    stop
     raise e
   else
     @log.debug "published an event to #{@routing}"

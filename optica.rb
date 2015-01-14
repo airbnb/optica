@@ -68,15 +68,25 @@ class Optica < Sinatra::Base
       halt(403) unless ip == header.split(',').first
     end
 
+    # update main store
     begin
       merged_data = settings.store.add(ip, data)
-      settings.events.send(merged_data.merge("event" => data))
     rescue
       halt(500)
     end
 
+    # publish update event
+    message = 'stored'
+    begin
+      settings.events.send(merged_data.merge("event" => data))
+    rescue => e
+      # If event publishing failed, we treat it as a warning rather than an error.
+      message += " -- [warning] failed to publish to rabbitmq: #{e.to_s}"
+    end
+
     content_type 'text/plain', :charset => 'utf-8'
-    return 'stored'
+
+    return message
   end
 
   delete '/:id' do |id|
