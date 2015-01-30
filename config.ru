@@ -9,6 +9,10 @@ log.level = Logger::INFO unless opts['debug']
 
 opts['log'] = log
 
+# prepare statsd
+require 'statsd-ruby'
+STATSD = Statsd.new(opts['statsd_host'], opts['statsd_port'])
+
 # prepare to exit cleanly
 $EXIT = false
 
