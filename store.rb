@@ -64,10 +64,14 @@ class Store
     @log.debug "writing to zk at #{child} with #{json_data}"
 
     begin
-      @zk.set(child, json_data)
+      STATSD.time('optica.zookeeper.set') do
+        @zk.set(child, json_data)
+      end
       new_data
     rescue ZK::Exceptions::NoNode => e
-      @zk.create(child, :data => json_data)
+      STATSD.time('optica.zookeeper.create') do
+        @zk.create(child, :data => json_data)
+      end
       new_data
     rescue Exception => e
       @log.error "unexpected error writing to zk! #{e.inspect}"
@@ -79,7 +83,9 @@ class Store
     @log.info "deleting node #{node}"
 
     begin
-      @zk.delete("/" + node, :ignore => :no_node)
+      STATSD.time('optica.zookeeper.delete') do
+        @zk.delete("/" + node, :ignore => :no_node)
+      end
     rescue Exception => e
       @log.error "unexpected error deleting nodes in zk! #{e.inspect}"
       raise e
@@ -104,8 +110,12 @@ class Store
   private
   def get_node(node)
     begin
-      data, stat = @zk.get(node)
-      JSON.parse(data)
+      data, stat = STATSD.time('optica.zookeeper.get') do
+        @zk.get(node)
+      end
+      STATSD.time('optica.json.parse') do
+        JSON.parse(data)
+      end
     rescue ZK::Exceptions::NoNode
       @log.info "node #{node} disappeared"
       {}
