@@ -8,6 +8,15 @@ class Optica < Sinatra::Base
   end
 
   get '/' do
+    return get_nodes(request, true)
+  end
+
+  # endpoint for fab usage
+  get '/roles' do
+    return get_nodes(request, false)
+  end
+
+  def get_nodes(request, is_full_node)
     params = CGI::parse(request.query_string)
 
     # include only those nodes that match passed-in parameters
@@ -41,7 +50,9 @@ class Optica < Sinatra::Base
         end
       end
 
-      to_return[node] = properties if included
+      if included
+        to_return[node] = is_full_node ? properties : properties.slice(:role, :id, :hostname) 
+      end
     end
 
     content_type 'application/json', :charset => 'utf-8'

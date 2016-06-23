@@ -4,7 +4,7 @@ import collections
 import json
 import requests
 
-response  = requests.get('http://%s:8080/' % optica_ip)
+response  = requests.get('http://%s:8080/roles' % optica_ip)
 hosts     = json.loads(response.text)
 
 # fill the role list
