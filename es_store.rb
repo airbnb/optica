@@ -31,6 +31,8 @@ class ESStore
   def nodes(params=nil)
     full_nodes = {}
     q = []
+    query = nil
+    search_params = {index: 'optica', search_type: 'scan', scroll: '30s', size: @batch_size}
     if params
       params.each do |param, values|
         values.each do |value|
@@ -39,8 +41,10 @@ class ESStore
       end
 
       query = q.join('+')
+      search_params.merge!({default_operator: 'AND', q: query})
     end
-    result = @es.search index: 'optica', search_type: 'scan', scroll: '30s', size: @batch_size, default_operator: 'AND', q: query
+
+    result = @es.search(search_params)
 
     while result = @es.scroll(scroll_id: result['_scroll_id'], scroll: '30s') and not result['hits']['hits'].empty? do
       result['hits']['hits'].each do | node | 
