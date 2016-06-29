@@ -36,13 +36,17 @@ class ESStore
     if params && !params.empty?
       params.each do |param, values|
         values.each do |value|
-          q << "#{param}:#{value}"
+          if param == 'q'
+            q << value
+          else
+            q << "#{param}:#{value}"
+          end
         end
       end
 
       query = q.join(' AND ')
       @log.debug search_params
-      search_params.merge!({q: query})
+      search_params.merge!({default_operator: 'AND', q: query})
       @log.debug search_params
     end
 
