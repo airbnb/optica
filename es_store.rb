@@ -33,15 +33,17 @@ class ESStore
     q = []
     query = nil
     search_params = {index: 'optica', search_type: 'scan', scroll: '30s', size: @batch_size}
-    if params
+    if params && !params.empty?
       params.each do |param, values|
         values.each do |value|
           q << "#{param}:#{value}"
         end
       end
 
-      query = q.join('+')
-      search_params.merge!({default_operator: 'AND', q: query})
+      query = q.join(' AND ')
+      @log.debug search_params
+      search_params.merge!({q: query})
+      @log.debug search_params
     end
 
     result = @es.search(search_params)
