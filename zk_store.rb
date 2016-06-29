@@ -2,7 +2,7 @@ require 'zk'
 require 'json'
 require 'hash_deep_merge'
 
-class Store
+class ZKStore
 
   attr_reader :ips
 
