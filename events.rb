@@ -28,11 +28,11 @@ class Events
   end
 
   def start
-    #@client = Stomp::Client.new(@connect_hash)
+    @client = Stomp::Client.new(@connect_hash)
   end
 
   def send(data)
-    #@client.publish("/exchange/#{@exchange_name}/#{@routing}", data.to_json, {:persistent => true})
+    @client.publish("/exchange/#{@exchange_name}/#{@routing}", data.to_json, {:persistent => true})
   rescue Exception => e
     @log.error "unexpected error publishing to rabbitmq: #{e.inspect}"
     raise e
@@ -41,7 +41,7 @@ class Events
   end
 
   def healthy?
-    #@client.publish("/exchange/#{@exchange_name}/#{@health_routing}", '')
+    @client.publish("/exchange/#{@exchange_name}/#{@health_routing}", '')
   rescue StandardError => e
     @log.error "events interface failed health check: #{e.inspect}"
     false
