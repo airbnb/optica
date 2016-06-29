@@ -9,22 +9,17 @@ class ESStore
   def initialize(opts)
     @log = opts['log']
 
-    unless opts['es_path']
-      raise ArgumentError, "missing required argument 'es_path'"
-    else
-      @path = opts['es_path']
-    end
-
-    @port = opts['es_port']
-
-    @es_index = opts['es_index']
+    @path = opts['es_path'] || '127.0.0.1'
+    @port = opts['es_port'] || 9200
+    @index = opts['es_index'] || 'optica'
+    @batch_size = opts['es_batch_size'] || 1000
 
     @es = nil
   end
 
   def start()
     @log.info "waiting to connect to Elasticsearch at #{@path}"
-    @es = Elasticsearch::Client.new url: @es_path, port: @port, log: @log
+    @es = Elasticsearch::Client.new url: "#{@path}:#{@port}"
   end
 
   def stop()
@@ -33,11 +28,21 @@ class ESStore
   end
 
   # get instances for a given service
-  def nodes()
+  def nodes(params=nil)
     full_nodes = {}
-    result = @es.search index: 'optica', search_type: 'scan', scroll: '1m', size: 100
+    q = []
+    if params
+      params.each do |param, values|
+        values.each do |value|
+          q << "#{param}:#{value}"
+        end
+      end
 
-    while result = @es.scroll(scroll_id: result['_scroll_id'], scroll: '5m') and not result['hits']['hits'].empty? do
+      query = q.join('+')
+    end
+    result = @es.search index: 'optica', search_type: 'scan', scroll: '30s', size: @batch_size, default_operator: 'AND', q: query
+
+    while result = @es.scroll(scroll_id: result['_scroll_id'], scroll: '30s') and not result['hits']['hits'].empty? do
       result['hits']['hits'].each do | node | 
         source = node["_source"]
         full_nodes[source['ip']] = source
@@ -55,7 +60,7 @@ class ESStore
     id ||= node
 
     begin
-      @es.index  index: @es_index, type: 'host', body: data
+      @es.index  index: @index, type: 'host', body: data
     rescue Exception => e
       @log.error "unexpected error writing to ES! #{e.inspect}"
       raise e
@@ -68,7 +73,7 @@ class ESStore
     begin
       doc = @es.search index: 'optica', type: 'host', q: "ip:#{node}"
       id = doc["hits"]["hits"].first["_id"]
-      @es.delete  index: @es_index, type: 'host', id: id
+      @es.delete  index: @index, type: 'host', id: id
     rescue Exception => e
       @log.error "unexpected error writing to ES! #{e.inspect}"
       raise e
@@ -93,7 +98,7 @@ class ESStore
 
   private
 
-  def is_es_healthy
+  def is_es_healthy?
     @es.cluster.health["status"] == 'green'
   end
 end
