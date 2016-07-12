@@ -70,7 +70,7 @@ class ESStore
     id ||= node
 
     begin
-      @es.index  index: @index, type: 'host', body: data
+      @es.index  index: @index, type: 'host', id: id, body: data
     rescue Exception => e
       @log.error "unexpected error writing to ES! #{e.inspect}"
       raise e
