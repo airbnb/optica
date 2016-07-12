@@ -2,7 +2,7 @@ require 'zk'
 require 'json'
 require 'hash_deep_merge'
 
-class Store
+class ZKStore
 
   attr_reader :ips
 
@@ -83,7 +83,7 @@ class Store
   end
 
   # get instances for a given service
-  def nodes()
+  def nodes(params=nil)
     STATSD.time('optica.store.get_nodes') do
       return load_instances_from_zk unless @cache_enabled
       @cache_results.clone

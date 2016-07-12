@@ -1,5 +1,10 @@
 {
   "zk_path":"localhost:2181/optica",
+  "es_path":"127.0.0.1",
+  "es_port":9200,
+  "es_store":true,
+  "es_index":"optica",
+  "es_batch_size:1000,
   "debug":true,
   "ip_check":true,
   "rabbit_host":"127.0.0.1",

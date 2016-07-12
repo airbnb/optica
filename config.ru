@@ -17,8 +17,14 @@ STATSD = Statsd.new(opts['statsd_host'], opts['statsd_port'])
 $EXIT = false
 
 # configure the store
-require './store.rb'
-store = Store.new(opts)
+if opts['es_store']
+  require './es_store.rb'
+  store = ESStore.new(opts)
+else
+  require './zk_store.rb'
+  store = ZKStore.new(opts)
+end
+
 store.start
 
 # configure the event creator

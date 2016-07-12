@@ -14,7 +14,7 @@ class Optica < Sinatra::Base
   # endpoint for fab usage
   get '/roles' do
     # keys must be strings
-    return get_nodes(request, ['role', 'id', 'hostname'])
+    return get_nodes(request, ['role', 'id', 'hostname', 'roles', 'last_reported', 'environment'])
   end
 
   def get_nodes(request, fields_to_include=nil)
@@ -24,7 +24,7 @@ class Optica < Sinatra::Base
     examined = 0
     to_return = {}
     begin
-      nodes = settings.store.nodes
+      nodes = settings.store.nodes(params)
     rescue
       halt(503)
     end
@@ -35,6 +35,9 @@ class Optica < Sinatra::Base
 
       params.each do |param, values|
         values.each do |value|
+          # skip speical ES param
+          next if param == 'q'
+
           if not properties.include? param
             included = false
           elsif properties[param].nil?
