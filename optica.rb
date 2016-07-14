@@ -13,21 +13,21 @@ class Optica < Sinatra::Base
 
   # endpoint for fab usage
   get '/roles' do
-    params_to_fetch = ['role', 'id', 'hostname']
+    fields_to_include = ['role', 'id', 'hostname']
     params = CGI::parse(request.query_string)
-    if params['_additional_fields']
-      values = params['_additional_fields']
+    if params['_extra_fields']
+      values = params['_extra_fields']
       # accept both _additional_fields[] and _additional_fields=1,2 syntax
       values.each do |value|
-        params_to_fetch += value.split(',')
+        fields_to_include += value.split(',')
       end
     end
 
-    return get_nodes(request, params_to_fetch)
+    return get_nodes(request, fields_to_include)
   end
 
   def get_nodes(request, fields_to_include=nil)
-    params = CGI::parse(request.query_string)
+    params = CGI::parse(request.query_string).reject { |p| p[0] == '_' }
 
     # include only those nodes that match passed-in parameters
     examined = 0
@@ -44,8 +44,6 @@ class Optica < Sinatra::Base
 
       params.each do |param, values|
         values.each do |value|
-
-          next if param == '_additional_fields'
 
           if not properties.include? param
             included = false
