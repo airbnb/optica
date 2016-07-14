@@ -13,8 +13,17 @@ class Optica < Sinatra::Base
 
   # endpoint for fab usage
   get '/roles' do
-    # keys must be strings
-    return get_nodes(request, ['role', 'id', 'hostname'])
+    params_to_fetch = ['role', 'id', 'hostname']
+    params = CGI::parse(request.query_string)
+    if params['_additional_fields']
+      values = params['_additional_fields']
+      # accept both _additional_fields[] and _additional_fields=1,2 syntax
+      values.each do |value|
+        params_to_fetch += value.split(',')
+      end
+    end
+
+    return get_nodes(request, params_to_fetch)
   end
 
   def get_nodes(request, fields_to_include=nil)
@@ -35,6 +44,9 @@ class Optica < Sinatra::Base
 
       params.each do |param, values|
         values.each do |value|
+
+          next if param == '_additional_fields'
+
           if not properties.include? param
             included = false
           elsif properties[param].nil?
@@ -53,7 +65,7 @@ class Optica < Sinatra::Base
 
       if included
         # return full list if fields_to_include is nil. Otherwise return only keys
-        # listed in fields_to_include. Not using slice because not a rails app. 
+        # listed in fields_to_include. Not using slice because not a rails app.
         to_return[node] = fields_to_include.nil? ? properties : properties
           .select { |key, _value| fields_to_include.include? key }
       end
