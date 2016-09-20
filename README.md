@@ -9,7 +9,7 @@ GET also accepts some parameters to limit which of the registered nodes you see.
 
 ## Why Optica? ##
 
-We love the node registration features of [chef server](http://docs.opscode.com/chef_overview_server.html).
+We love the node registration features of [chef server](https://docs.chef.io/server_components.html).
 However, we run chef-solo here at [Airbnb](www.airbnb.com).
 We use optica as alternate node registration system.
 
