@@ -68,7 +68,7 @@ default.optica.report['jvm_version'] = node.java.version
 ## Usage on the command line ##
 
 Optica has a very minimal query syntax, and errs on the side of returning more information than you need.
-Really, the only reason for the query parameters is to limit the amount of data transfered over the network.
+Really, the only reason for the query parameters is to limit the amount of data transferred over the network.
 We can get away with it because all of the complex functionality you might wish for on the command line is provided by [JQ](http://stedolan.github.io/jq/).
 
 ### JQ examples ###
