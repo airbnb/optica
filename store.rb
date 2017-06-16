@@ -6,6 +6,8 @@ class Store
 
   attr_reader :ips
 
+  DEFAULT_CACHE_STALE_AGE = 0
+
   def initialize(opts)
     @log = opts['log']
 
@@ -28,6 +30,7 @@ class Store
     # machines, cache will always have the right set of machines.
 
     @cache_enabled = !!opts['cache_enabled']
+    @cache_stale_age = opts['cache_stale_age'] || DEFAULT_CACHE_STALE_AGE
 
     # zk watcher for node joins/leaves
     @cache_root_watcher = nil
@@ -50,14 +53,27 @@ class Store
   def start()
     @log.info "waiting to connect to zookeeper at #{@path}"
     @zk = ZK.new(@path)
+
     @zk.on_state_change do |event|
       @log.info "zk state changed, state=#{@zk.state}, session_id=#{session_id}"
     end
+
     @zk.ping?
     @log.info "ZK connection established successfully. session_id=#{session_id}"
 
-    if @cache_enabled then
-      watch
+    # We have to readd all watchers and refresh cache if we reconnect to a new server.
+    @zk.on_connected do |event|
+      @log.info "ZK connection re-established. session_id=#{session_id}"
+
+      if @cache_enabled
+        @log.info "Resetting watchers and re-syncing cache. session_id=#{session_id}"
+        setup_watchers
+        reload_instances
+      end
+    end
+
+    if @cache_enabled
+      setup_watchers
       reload_instances
       start_fetch_thread
     end
@@ -86,6 +102,8 @@ class Store
   def nodes()
     STATSD.time('optica.store.get_nodes') do
       return load_instances_from_zk unless @cache_enabled
+
+      check_cache_age
       @cache_results.clone
     end
   end
@@ -99,6 +117,13 @@ class Store
         from_server[child] = get_node("/#{child}")
       end
     rescue Exception => e
+      # ZK client library caches DNS names of ZK nodes and it resets the
+      # cache only when the client object is initialized, or set_servers
+      # method is called. Set_servers is not exposed in ruby library, so
+      # we force re-init the underlying client object here to make sure
+      # we always connect to the current IP addresses.
+      @zk.reopen
+
       @log.error "unexpected error reading from zk! #{e.inspect}"
       raise e
     end
@@ -127,6 +152,8 @@ class Store
       end
       new_data
     rescue Exception => e
+      @zk.reopen
+
       @log.error "unexpected error writing to zk! #{e.inspect}"
       raise e
     end
@@ -140,6 +167,8 @@ class Store
         @zk.delete("/" + node, :ignore => :no_node)
       end
     rescue Exception => e
+      @zk.reopen
+
       @log.error "unexpected error deleting nodes in zk! #{e.inspect}"
       raise e
     end
@@ -177,17 +206,34 @@ class Store
       delete(node)
       {}
     rescue Exception => e
+      @zk.reopen
+
       @log.error "unexpected error reading from zk! #{e.inspect}"
       raise e
     end
   end
 
   # immediately update cache if node joins/leaves
-  def watch()
+  def setup_watchers
     return if @zk.nil?
-    @cache_root_watcher ||= @zk.register("/", :only => :child) do |event|
+
+    @cache_root_watcher = @zk.register("/", :only => :child) do |event|
       @log.info "Children added/deleted"
       reload_instances
+    end
+  end
+
+  def check_cache_age
+    return unless @cache_enabled
+
+    cache_age = Time.new.to_i - @cache_results_last_fetched_time.to_i
+    STATSD.gauge 'optica.store.cache.age', cache_age
+
+    if @cache_stale_age > 0 && cache_age > @cache_stale_age
+      msg = "cache age exceeds threshold: #{cache_age} > #{@cache_stale_age}"
+
+      @log.error msg
+      raise msg
     end
   end
 
@@ -219,6 +265,7 @@ class Store
           sleep(@cache_fetch_interval) rescue nil
           @log.info "Cache fetch thread now fetches from zk..."
           reload_instances rescue nil
+          check_cache_age
         rescue => ex
           @log.warn "Caught exception in cache fetch thread: #{ex} #{ex.backtrace}"
         end
