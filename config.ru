@@ -59,5 +59,11 @@ Optica.set :store, store
 Optica.set :events, events
 Optica.set :ip_check, ip_check
 
+begin
+    require 'newrelic_rpm'
+rescue LoadError
+    log.info "Newrelic not found, skipping..."
+end
+
 log.info "Starting sinatra server..."
 run Optica
