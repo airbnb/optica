@@ -16,6 +16,25 @@ STATSD = Statsd.new(opts['statsd_host'], opts['statsd_port'])
 # prepare to exit cleanly
 $EXIT = false
 
+# configure unicorn-worker-killer
+if opts['worker_killer']
+  require 'unicorn/worker_killer'
+
+  wk_opts = opts['worker_killer']
+
+  if wk_opts['max_requests']
+    max_requests = wk_opts['max_requests']
+    # Max requests per worker
+    use Unicorn::WorkerKiller::MaxRequests, max_requests['min'], max_requests['max']
+  end
+
+  if wk_opts['mem_limit']
+    mem_limit = wk_opts['mem_limit']
+    # Max memory size (RSS) per worker
+    use Unicorn::WorkerKiller::Oom, mem_limit['min'], mem_limit['max']
+  end
+end
+
 # configure the store
 require './store.rb'
 store = Store.new(opts)
