@@ -9,6 +9,15 @@ log.level = Logger::INFO unless opts['debug']
 
 opts['log'] = log
 
+# Enable GC stats
+if opts['gc_stats']
+  if defined? GC::Profiler && GC::Profiler.respond_to?(:enable)
+    GC::Profiler.enable
+  elsif GC.respond_to?(:enable_stats)
+    GC.enable_stats
+  end
+end
+
 # prepare statsd
 require 'statsd-ruby'
 STATSD = Statsd.new(opts['statsd_host'], opts['statsd_port'])
