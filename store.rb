@@ -1,5 +1,5 @@
 require 'zk'
-require 'json'
+require 'oj'
 require 'hash_deep_merge'
 
 class Store
@@ -137,7 +137,7 @@ class Store
     # deep-merge the old and new data
     prev_data = get_node(child)
     new_data = prev_data.deep_merge(data)
-    json_data = new_data.to_json
+    json_data = Oj.dump(new_data)
 
     @log.debug "writing to zk at #{child} with #{json_data}"
 
@@ -196,7 +196,7 @@ class Store
         @zk.get(node)
       end
       STATSD.time('optica.json.parse') do
-        JSON.parse(data)
+        Oj.load(data)
       end
     rescue ZK::Exceptions::NoNode
       @log.info "node #{node} disappeared"

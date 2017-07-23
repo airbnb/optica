@@ -1,5 +1,5 @@
-
 require 'stomp'
+require 'oj'
 
 class Events
   def initialize(opts)
@@ -32,7 +32,7 @@ class Events
   end
 
   def send(data)
-    @client.publish("/exchange/#{@exchange_name}/#{@routing}", data.to_json, {:persistent => true})
+    @client.publish("/exchange/#{@exchange_name}/#{@routing}", Oj.dump(data), {:persistent => true})
   rescue Exception => e
     @log.error "unexpected error publishing to rabbitmq: #{e.inspect}"
     raise e
