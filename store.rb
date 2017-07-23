@@ -104,7 +104,7 @@ class Store
       return load_instances_from_zk unless @cache_enabled
 
       check_cache_age
-      @cache_results.clone
+      @cache_results
     end
   end
 
@@ -248,7 +248,7 @@ class Store
     # sure that cache set will always have newer versions
 
     fetch_start_time = Time.now
-    instances = load_instances_from_zk()
+    instances = load_instances_from_zk.freeze
     @cache_mutex.synchronize do
       if fetch_start_time > @cache_results_last_fetched_time then
         @cache_results_last_fetched_time = fetch_start_time
