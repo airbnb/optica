@@ -1,5 +1,5 @@
-require 'json'
-opts = JSON.parse( File.read('config.json') )
+require 'oj'
+opts = Oj.load( File.read('config.json') )
 
 # prepare the logger
 require 'logger'

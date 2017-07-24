@@ -1,6 +1,6 @@
 require 'sinatra/base'
-require 'json'
 require 'cgi'
+require 'oj'
 
 class Optica < Sinatra::Base
   configure :production, :development do
@@ -71,12 +71,12 @@ class Optica < Sinatra::Base
 
     content_type 'application/json', :charset => 'utf-8'
     result = {'examined'=>examined, 'returned'=>to_return.count, 'nodes'=>to_return}
-    return result.to_json
+    return Oj.dump(result)
   end
 
   post '/' do
     begin
-      data = JSON.parse request.body.read
+      data = Oj.load request.body.read
     rescue JSON::ParserError
       data = {}
     end
