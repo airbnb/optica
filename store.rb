@@ -1,5 +1,5 @@
 require 'zk'
-require 'json'
+require 'oj'
 require 'hash_deep_merge'
 
 class Store
@@ -104,7 +104,7 @@ class Store
       return load_instances_from_zk unless @cache_enabled
 
       check_cache_age
-      @cache_results.clone
+      @cache_results
     end
   end
 
@@ -137,7 +137,7 @@ class Store
     # deep-merge the old and new data
     prev_data = get_node(child)
     new_data = prev_data.deep_merge(data)
-    json_data = new_data.to_json
+    json_data = Oj.dump(new_data)
 
     @log.debug "writing to zk at #{child} with #{json_data}"
 
@@ -196,7 +196,7 @@ class Store
         @zk.get(node)
       end
       STATSD.time('optica.json.parse') do
-        JSON.parse(data)
+        Oj.load(data)
       end
     rescue ZK::Exceptions::NoNode
       @log.info "node #{node} disappeared"
@@ -248,7 +248,7 @@ class Store
     # sure that cache set will always have newer versions
 
     fetch_start_time = Time.now
-    instances = load_instances_from_zk()
+    instances = load_instances_from_zk.freeze
     @cache_mutex.synchronize do
       if fetch_start_time > @cache_results_last_fetched_time then
         @cache_results_last_fetched_time = fetch_start_time
