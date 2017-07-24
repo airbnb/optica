@@ -22,6 +22,13 @@ end
 require 'statsd-ruby'
 STATSD = Statsd.new(opts['statsd_host'], opts['statsd_port'])
 
+begin
+  require 'newrelic_rpm'
+  require 'newrelic-zookeeper'
+rescue LoadError
+  log.info "Newrelic not found, skipping..."
+end
+
 # prepare to exit cleanly
 $EXIT = false
 
@@ -86,12 +93,6 @@ require './optica.rb'
 Optica.set :store, store
 Optica.set :events, events
 Optica.set :ip_check, ip_check
-
-begin
-    require 'newrelic_rpm'
-rescue LoadError
-    log.info "Newrelic not found, skipping..."
-end
 
 log.info "Starting sinatra server..."
 run Optica
