@@ -108,7 +108,22 @@ class Store
     end
   end
 
-  def load_instances_from_zk()
+  def reset_watchers_on_zk
+    @log.info "Resetting watchers on zk"
+    @zk.children('/', :watch => true)
+  rescue Exception => e
+    # ZK client library caches DNS names of ZK nodes and it resets the
+    # cache only when the client object is initialized, or set_servers
+    # method is called. Set_servers is not exposed in ruby library, so
+    # we force re-init the underlying client object here to make sure
+    # we always connect to the current IP addresses.
+    @zk.reopen
+
+    @log.error "unexpected error resetting watchers from zk! #{e.inspect}"
+    raise e
+  end
+
+  def load_instances_from_zk
     @log.info "Reading instances from zk:"
     from_server = {}
 
@@ -237,7 +252,10 @@ class Store
     end
   end
 
-  def reload_instances()
+  def reload_instances
+    # make sure to reset watchers before starting this logic, in case we short circuit
+    reset_watchers_on_zk
+
     # Here we use local time to preven race condition
     # Basically cache fetch thread or zookeeper watch callback
     # both will call this to refresh cache. Depending on which
@@ -246,13 +264,12 @@ class Store
     # we set both cache and the timestamp of that version fetched
     # Since timestamp will be monotonically increasing, we are
     # sure that cache set will always have newer versions
-
     fetch_start_time = Time.now
-    instances = load_instances_from_zk.freeze
+
     @cache_mutex.synchronize do
-      if fetch_start_time > @cache_results_last_fetched_time then
-        @cache_results_last_fetched_time = fetch_start_time
-        @cache_results = instances
+      if fetch_start_time > @cache_results_last_fetched_time
+        @cache_results = load_instances_from_zk.freeze
+        @cache_results_last_fetched_time = Time.now
       end
     end
   end
