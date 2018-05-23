@@ -56,10 +56,32 @@ require './store.rb'
 store = Store.new(opts)
 store.start
 
+EVENTS_CLASSES = {
+  'rabbitmq' => {
+    'class_name' => 'EventsRabbitMQ',
+    'file_name' => './events_rmq.rb',
+  },
+  'sqs' => {
+    'class_name' => 'EventsSQS',
+    'file_name' => './events_sqs.rb'
+  },
+}
+
+events_classes = opts['events'] || ['rabbitmq']
+
 # configure the event creator
-require './events.rb'
-events = Events.new(opts)
-events.start
+events = events_classes.map do |name|
+  class_opts = EVENTS_CLASSES[name]
+  raise "unknown value '#{name}' for events option" unless class_opts
+  class_name = class_opts['class_name']
+  file_name = class_opts['file_name']
+  log.info "loading #{class_name} from #{file_name}"
+  require file_name
+  class_const = Object.const_get(class_name)
+  class_const.new(opts).tap do |obj|
+    obj.start
+  end
+end
 
 # set a signal handler
 ['INT', 'TERM', 'QUIT'].each do |signal|

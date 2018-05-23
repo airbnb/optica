@@ -103,10 +103,13 @@ class Optica < Sinatra::Base
     # publish update event
     message = 'stored'
     begin
-      settings.events.send(merged_data.merge("event" => data))
+      event = merged_data.merge('event' => data)
+      settings.events.each do |events|
+        events.send(event)
+      end
     rescue => e
       # If event publishing failed, we treat it as a warning rather than an error.
-      message += " -- [warning] failed to publish to rabbitmq: #{e.to_s}"
+      message += " -- [warning] failed to publish event: #{e.to_s}"
     end
 
     content_type 'text/plain', :charset => 'utf-8'
@@ -132,7 +135,7 @@ class Optica < Sinatra::Base
   end
 
   get '/health' do
-    if settings.store.healthy? and settings.events.healthy?
+    if settings.store.healthy? and settings.events.all? { |events| events.healthy? }
       content_type 'text/plain', :charset => 'utf-8'
       return "OK"
     else

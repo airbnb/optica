@@ -8,6 +8,7 @@ gem 'hash-deep-merge',       '~> 0.1.1'
 gem 'oj',                    '= 3.3.2'
 gem 'stomp',                 '~> 1.3.2'
 gem 'statsd-ruby',           '~> 1.2.1'
+gem 'aws-sdk-sqs',           '= 1.3.0'
 
 group :newrelic do
   gem 'newrelic_rpm',          '~> 3.18.1'
