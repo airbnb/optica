@@ -19,8 +19,8 @@ if opts['gc_stats']
 end
 
 # prepare statsd
-require 'statsd-ruby'
-STATSD = Statsd.new(opts['statsd_host'], opts['statsd_port'])
+require 'datadog/statsd'
+STATSD = Datadog::Statsd.new(opts['statsd_host'], opts['statsd_port'])
 
 begin
   require 'newrelic_rpm'

@@ -103,11 +103,15 @@ class Optica < Sinatra::Base
     # publish update event
     message = 'stored'
     begin
+      tags = []
       event = merged_data.merge('event' => data)
       settings.events.each do |events|
+        tags = ["events_queue:#{events.name}"]
         events.send(event)
+        STATSD.increment('optica.events', :tags => tags + ['status:success'])
       end
     rescue => e
+      STATSD.increment('optica.events', :tags => tags + ['status:failed']) unless tags.empty?
       # If event publishing failed, we treat it as a warning rather than an error.
       message += " -- [warning] failed to publish event: #{e.to_s}"
     end
