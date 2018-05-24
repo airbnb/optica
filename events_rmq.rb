@@ -1,7 +1,7 @@
 require 'stomp'
 require 'oj'
 
-class Events
+class EventsRabbitMQ
   def initialize(opts)
     @log = opts['log']
 
@@ -27,6 +27,10 @@ class Events
     @health_routing = opts['health_routing'] || 'checks.optica'
   end
 
+  def name
+    'rabbitmq'
+  end
+
   def start
     @client = Stomp::Client.new(@connect_hash)
   end
@@ -46,7 +50,7 @@ class Events
     @log.error "events interface failed health check: #{e.inspect}"
     false
   else
-    @log.debug "events interface healthy"
+    @log.debug "events interface for RabbitMQ healthy"
     true
   end
 

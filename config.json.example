@@ -3,5 +3,8 @@
   "debug":true,
   "ip_check":true,
   "rabbit_host":"127.0.0.1",
-  "rabbit_port":5672
+  "rabbit_port":5672,
+  "events":["rabbitmq", "sqs"],
+  "sqs_region":"us-west-2",
+  "sqs_queue":"optica-events"
 }
