@@ -32,7 +32,7 @@ At Airbnb, this data store is [Apache Zookeeper](https://zookeeper.apache.org/).
 Why Zookeeper?
 * we consider optica information critical data, with high uptime requirements
 * we already rely critically on Zookeeper to connect our infrastructure; we strive to ensure maximum uptime for this system
-* the load patterns of optica (many reads, infrequenty writes) match what zookeeper provides
+* the load patterns of optica (many reads, infrequently writes) match what zookeeper provides
 
 ### Rabbitmq ###
 
@@ -81,7 +81,7 @@ my_optica_host='https://optica.example.com'
 curl --silent ${my_optica_host}/?"$1" | jq --compact-output ".nodes[] | $2"
 ```
 
-With this in your `$PATH` and the right subsitution for your optica endpoint, here are some examples:
+With this in your `$PATH` and the right substitution for your optica endpoint, here are some examples:
 
 ##### Getting all hostnames by role: #####
 
