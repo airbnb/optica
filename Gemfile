@@ -15,3 +15,7 @@ group :newrelic do
   gem 'newrelic_rpm',          '~> 3.18.1'
   gem 'newrelic-zookeeper',    '~> 1.0.0'
 end
+
+group :ddtrace do
+  gem 'ddtrace', '~> 0.45.0'
+end

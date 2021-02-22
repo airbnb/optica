@@ -110,11 +110,39 @@ when false, nil then false
 else raise 'unknown value for ip_check option'
 end
 
-# start the app
+# load the app
 require './optica.rb'
+
+# configure tracing client
+def datadog_config(log)
+  Datadog.configure do |c|
+    service = ENV.fetch('DD_SERVICE', 'optica')
+    c.use :sinatra, service_name: service
+    # Statsd instance used for sending runtime metrics
+    c.runtime_metrics.statsd = STATSD
+  end
+
+  # register tracer extension
+  Optica.register Datadog::Contrib::Sinatra::Tracer
+
+  # add correlation IDs to logger
+  log.formatter = proc do |severity, datetime, progname, msg|
+    "[#{datetime}][#{progname}][#{severity}][#{Datadog.tracer.active_correlation}] #{msg}\n"
+  end
+end
+
+begin
+  require 'ddtrace/auto_instrument'
+  datadog_config(log)
+rescue LoadError
+  log.info "Datadog's tracing client not found, skipping..."
+end
+
+Optica.set :logger, log
 Optica.set :store, store
 Optica.set :events, events
 Optica.set :ip_check, ip_check
 
+# start the app
 log.info "Starting sinatra server..."
 run Optica
