@@ -3,6 +3,10 @@ require 'cgi'
 require 'oj'
 
 class Optica < Sinatra::Base
+  before do
+    env['rack.logger'] = settings.logger
+  end
+
   configure :production, :development do
     enable :logging
   end
