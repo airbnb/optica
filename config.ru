@@ -18,6 +18,12 @@ if opts['gc_stats']
   end
 end
 
+# Rack options
+if opts['rack']
+  key_space_limit = opts['rack']['key_space_limit']
+  Rack::Utils.key_space_limit = key_space_limit if key_space_limit
+end
+
 # prepare statsd
 require 'datadog/statsd'
 STATSD = Datadog::Statsd.new(opts['statsd_host'], opts['statsd_port'])
