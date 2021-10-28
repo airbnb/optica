@@ -1,12 +1,17 @@
 require 'zk'
 require 'oj'
 require 'hash_deep_merge'
+require 'hammerspace'
+require 'time'
 
 class Store
 
   attr_reader :ips
 
   DEFAULT_CACHE_STALE_AGE = 0
+  H_DIR = "/tmp/hammerspace".freeze
+  H_UPDATE_TIME_KEY = "update_time".freeze
+  H_CACHED_RESULTS_KEY = "cached_results".freeze
 
   def initialize(opts)
     @log = opts['log']
@@ -18,39 +23,38 @@ class Store
     end
 
     @zk = nil
-    setup_cache(opts)
+    @h = nil
+    @cache_enabled = !!opts['cache_enabled']
+    @cache_worker = nil
+    if @cache_enabled
+      @cache_worker = StoreCacheWorker.new(opts)
+    end
+    @cache_stale_age = opts['cache_stale_age'] || DEFAULT_CACHE_STALE_AGE
   end
 
-  def setup_cache(opts)
-    # We use a daemon that refreshes cache every N (tunable)
-    # seconds. In addition, we subscript to all children joining/leaving
-    # events. This is less frequent because normally no one would constantly
-    # add/remove machines. So whenever a join/leave event happens, we immediately
-    # refresh cache. This way we guarantee that whenever we add/remove
-    # machines, cache will always have the right set of machines.
+  def start_reader
+    if @cache_enabled
+      
+    else
+      connect_to_zk(false)
+    end
+  end
 
-    @cache_enabled = !!opts['cache_enabled']
-    @cache_stale_age = opts['cache_stale_age'] || DEFAULT_CACHE_STALE_AGE
-
+  def start_cache_worker(fetch_interval)
+    connect_to_zk(true)
     # zk watcher for node joins/leaves
     @cache_root_watcher = nil
 
-    # mutex for atomically updating cached results
-    @cache_mutex = Mutex.new
-    @cache_results = {}
+    # concurrency safe cache
+    @h = Hammerspace.new(H_DIR)
+    @h[H_UPDATE_TIME_KEY] = Time.now.to_s
 
-    # daemon that'll fetch from zk periodically
-    @cache_fetch_thread = nil
-    # flag that controls if fetch daemon should run
-    @cache_fetch_thread_should_run = false
-    # how long we serve cached data
-    @cache_fetch_interval = (opts['cache_fetch_interval'] || 20).to_i
-
-    # timestamp that prevents setting cache result with stale data
-    @cache_results_last_fetched_time = Time.now
+    setup_watchers
+    reload_instances
+    run_cache_worker(fetch_interval)
   end
 
-  def start()
+  def connect_to_zk(is_cache_worker)
     @log.info "waiting to connect to zookeeper at #{@path}"
     @zk = ZK.new(@path)
 
@@ -61,21 +65,15 @@ class Store
     @zk.ping?
     @log.info "ZK connection established successfully. session_id=#{session_id}"
 
-    # We have to readd all watchers and refresh cache if we reconnect to a new server.
+    # We have to read all watchers and refresh cache if we reconnect to a new server.
     @zk.on_connected do |event|
       @log.info "ZK connection re-established. session_id=#{session_id}"
 
-      if @cache_enabled
+      if is_cache_worker
         @log.info "Resetting watchers and re-syncing cache. session_id=#{session_id}"
         setup_watchers
         reload_instances
       end
-    end
-
-    if @cache_enabled
-      setup_watchers
-      reload_instances
-      start_fetch_thread
     end
   end
 
@@ -83,17 +81,16 @@ class Store
     '0x%x' % @zk.session_id rescue nil
   end
 
-  def stop_cache_related()
+  def stop_cache_worker
+    @log.warn "stopping cache worker"
+    stop
     @cache_root_watcher.unsubscribe if @cache_root_watcher
     @cache_root_watcher = nil
-    @cache_fetch_thread_should_run = false
-    @cache_fetch_thread.join if @cache_fetch_thread
-    @cache_fetch_thread = nil
+    @h.close
   end
 
-  def stop()
+  def stop
     @log.warn "stopping the store"
-    stop_cache_related
     @zk.close() if @zk
     @zk = nil
   end
@@ -104,7 +101,7 @@ class Store
       return load_instances_from_zk unless @cache_enabled
 
       check_cache_age
-      @cache_results
+      @cache_worker.get_cached_results
     end
   end
 
@@ -225,51 +222,29 @@ class Store
 
   def check_cache_age
     return unless @cache_enabled
-
-    cache_age = Time.new.to_i - @cache_results_last_fetched_time.to_i
-    STATSD.gauge 'optica.store.cache.age', cache_age
-
-    if @cache_stale_age > 0 && cache_age > @cache_stale_age
-      msg = "cache age exceeds threshold: #{cache_age} > #{@cache_stale_age}"
-
-      @log.error msg
-      raise msg
-    end
+    @cache_worker.throw_if_stale
   end
 
   def reload_instances()
-    # Here we use local time to preven race condition
-    # Basically cache fetch thread or zookeeper watch callback
-    # both will call this to refresh cache. Depending on which
-    # finishes first our cache will get set by the slower one.
-    # So in order to prevent setting cache to an older result,
-    # we set both cache and the timestamp of that version fetched
-    # Since timestamp will be monotonically increasing, we are
-    # sure that cache set will always have newer versions
-
-    fetch_start_time = Time.now
     instances = load_instances_from_zk.freeze
-    @cache_mutex.synchronize do
-      if fetch_start_time > @cache_results_last_fetched_time then
-        @cache_results_last_fetched_time = fetch_start_time
-        @cache_results = instances
-      end
-    end
+    set_cached_results(instances)
   end
 
-  def start_fetch_thread()
-    @cache_fetch_thread_should_run = true
-    @cache_fetch_thread = Thread.new do
-      while @cache_fetch_thread_should_run do
-        begin
-          sleep(@cache_fetch_interval) rescue nil
-          @log.info "Cache fetch thread now fetches from zk..."
-          reload_instances rescue nil
-          check_cache_age
-        rescue => ex
-          @log.warn "Caught exception in cache fetch thread: #{ex} #{ex.backtrace}"
-        end
-      end
-    end
+  def get_cache_age_secs()
+    last_fetched_time = Time.parse(@h[H_UPDATE_TIME_KEY])
+    Time.new.to_i - last_fetched_time.to_i
+  end
+
+  def set_cached_results(results)
+    # Hammerspace is threadsafe and latest write "wins"
+    # so no need to guard with mutex
+    @h[H_UPDATE_TIME_KEY] = Time.now.to_s
+    @h[H_CACHED_RESULTS_KEY] = results.to_json
+    flush_cache
+  end
+
+  def flush_cache()
+    @h.close
+    @h = Hammerspace.new(H_DIR)
   end
 end
