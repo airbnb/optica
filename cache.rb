@@ -3,7 +3,6 @@ require 'hammerspace'
 require 'time'
 
 class Cache
-
   DEFAULT_CACHE_STALE_AGE = 0
   H_DIR = "/tmp/hammerspace".freeze
   H_UPDATE_TIME_KEY = "update_time".freeze
@@ -59,4 +58,3 @@ class Cache
     @h.close
   end
 end
-

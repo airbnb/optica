@@ -1,0 +1,4 @@
+{
+  "zk_path":"localhost:2181/optica",
+  "fetch_interval": 5
+}
