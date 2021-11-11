@@ -30,14 +30,25 @@ class Optica < Sinatra::Base
     return get_nodes(request, fields_to_include)
   end
 
+  get '/store' do
+    content_type 'application/octet-stream'
+    return settings.store.nodes_serialized
+  end
+
   def get_nodes(request, fields_to_include=nil)
     params = CGI::parse(request.query_string).reject { |p| p[0] == '_' }
+
+    # Optimization for some of the most expensive requests
+    if fields_to_include.nil? && params.empty? && settings.split_mode == 'server'
+      content_type 'application/json', :charset => 'utf-8'
+      return settings.store.nodes_serialized
+    end
 
     # include only those nodes that match passed-in parameters
     examined = 0
     to_return = {}
     begin
-      nodes = settings.store.nodes
+      nodes = settings.store.lookup(params)
     rescue
       halt(503)
     end
