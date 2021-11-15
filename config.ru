@@ -9,6 +9,11 @@ log.level = Logger::INFO unless opts['debug']
 
 opts['log'] = log
 
+# Override store mode from ENV
+if ENV['OPTICA_SPLIT_MODE']
+  opts['split_mode'] = ENV['OPTICA_SPLIT_MODE'].downcase
+end
+
 # Enable GC stats
 if opts['gc_stats']
   if defined? GC::Profiler && GC::Profiler.respond_to?(:enable)
@@ -27,13 +32,6 @@ end
 # prepare statsd
 require 'datadog/statsd'
 STATSD = Datadog::Statsd.new(opts['statsd_host'], opts['statsd_port'])
-
-begin
-  require 'newrelic_rpm'
-  require 'newrelic-zookeeper'
-rescue LoadError
-  log.info "Newrelic not found, skipping..."
-end
 
 # prepare to exit cleanly
 $EXIT = false
@@ -92,7 +90,7 @@ end
 # set a signal handler
 ['INT', 'TERM', 'QUIT'].each do |signal|
   trap(signal) do
-    log.warn "Got signal #{signal} -- exit currently #{$EXIT}"
+    $stderr.puts "Got signal #{signal} -- exit currently #{$EXIT}"
 
     exit! if $EXIT
     $EXIT = true
@@ -133,7 +131,8 @@ def datadog_config(log)
 
   # add correlation IDs to logger
   log.formatter = proc do |severity, datetime, progname, msg|
-    "[#{datetime}][#{progname}][#{severity}][#{Datadog.tracer.active_correlation}] #{msg}\n"
+    correlation = Datadog.tracer.active_correlation rescue 'FAILED'
+    "[#{datetime}][#{progname}][#{severity}][#{correlation}] #{msg}\n"
   end
 end
 
@@ -148,6 +147,7 @@ Optica.set :logger, log
 Optica.set :store, store
 Optica.set :events, events
 Optica.set :ip_check, ip_check
+Optica.set :split_mode, opts['split_mode']
 
 # start the app
 log.info "Starting sinatra server..."
