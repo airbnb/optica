@@ -1,4 +1,5 @@
 require 'oj'
+Oj.default_options = { :mode => :strict }
 opts = Oj.load( File.read('config.json') )
 
 # prepare the logger
