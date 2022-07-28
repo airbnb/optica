@@ -91,7 +91,7 @@ class Optica < Sinatra::Base
 
   post '/' do
     begin
-      data = Oj.load(request.body.read, :mode => :strict)
+      data = Oj.safe_load(request.body.read)
     rescue JSON::ParserError
       data = {}
     end

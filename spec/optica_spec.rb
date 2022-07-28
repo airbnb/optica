@@ -26,6 +26,12 @@ RSpec.describe Optica do
         'environment' => 'development',
       }
     }
+    let(:object_data) {
+      {
+        'ip' => '127.0.0.1',
+        'test' => Object.new,
+      }
+    }
 
     before(:all) do
       Optica.set :ip_check, :test
@@ -47,6 +53,16 @@ RSpec.describe Optica do
       post('/', Oj.dump(data), 'CONTENT_TYPE' => 'application/json')
       expect(last_response.status).to eq(200)
       expect(last_response.body).to eq('stored')
+    end
+
+    it 'does not load objects' do
+      loaded_data = nil
+      allow(Optica.store).to receive(:add) do |ip, data|
+        loaded_data = data
+      end
+      post('/', Oj.dump(object_data), 'CONTENT_TYPE' => 'application/json')
+      expect(loaded_data).not_to be_nil
+      expect(loaded_data['test']).to be_a(Hash)
     end
   end
 end
