@@ -92,8 +92,8 @@ class Optica < Sinatra::Base
   post '/' do
     begin
       data = Oj.safe_load(request.body.read)
-    rescue JSON::ParserError
-      data = {}
+    rescue Oj::ParseError
+      halt(400, 'invalid request payload')
     end
 
     ip = data['ip']

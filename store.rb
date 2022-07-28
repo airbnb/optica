@@ -327,7 +327,7 @@ class Store
     rescue ZK::Exceptions::NoNode
       @log.info "node #{node} disappeared"
       {}
-    rescue JSON::ParserError
+    rescue Oj::ParseError
       @log.warn "removing invalid node #{node}: data failed to parse (#{data.inspect})"
       delete(node)
       {}

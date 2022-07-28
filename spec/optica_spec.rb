@@ -64,5 +64,10 @@ RSpec.describe Optica do
       expect(loaded_data).not_to be_nil
       expect(loaded_data['test']).to be_a(Hash)
     end
+
+    it 'rejects invalid JSON data' do
+      post('/', '{', 'CONTENT_TYPE' => 'application/json')
+      expect(last_response.status).to eq(400)
+    end
   end
 end
