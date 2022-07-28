@@ -14,3 +14,8 @@ gem 'get_process_mem',       '= 0.2.1'
 group :ddtrace do
   gem 'ddtrace', '~> 0.45.0'
 end
+
+group :test do
+  gem 'rspec',      '~> 3.11.0'
+  gem 'rack-test',  '~> 2.0.2'
+end
