@@ -174,7 +174,7 @@ class Store
       uri = "http://localhost:%d/store" % @opts['split_mode_store_port']
       res = open(uri, :read_timeout => @opts['split_mode_http_timeout'])
 
-      remote_store = Oj.load(res.read, :mode => :strict)
+      remote_store = Oj.safe_load(res.read)
       [ remote_store['inst'], remote_store['idx'] ]
     rescue OpenURI::HTTPError, Errno::ECONNREFUSED, Net::ReadTimeout => e
       @log.error "Error loading store from #{uri}: #{e.inspect}; will retry after #{@opts['split_mode_retry_delay']}"
@@ -322,12 +322,12 @@ class Store
         @zk.get(node)
       end
       STATSD.time('optica.json.parse') do
-        Oj.load(data, :mode => :strict)
+        Oj.safe_load(data)
       end
     rescue ZK::Exceptions::NoNode
       @log.info "node #{node} disappeared"
       {}
-    rescue JSON::ParserError
+    rescue Oj::ParseError
       @log.warn "removing invalid node #{node}: data failed to parse (#{data.inspect})"
       delete(node)
       {}
